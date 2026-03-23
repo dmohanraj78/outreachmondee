@@ -1,0 +1,637 @@
+{
+  "name": "Personalized Message sharing Automation working",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        96
+      ],
+      "id": "aa8382de-cf2f-43cf-aa88-136f45dd188d",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls",
+          "mode": "list",
+          "cachedResultName": "ICP",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1759447022,
+          "mode": "list",
+          "cachedResultName": "Verified Emails",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls/edit#gid=1759447022"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        224,
+        96
+      ],
+      "id": "ebad0733-c1a4-4a38-aaad-02313650af25",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "JEbTt0zril7zimiA",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        448,
+        96
+      ],
+      "id": "45f73d7a-68fc-492e-9a97-3f497c8725da",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "name": "Replace Me",
+      "typeVersion": 1,
+      "position": [
+        736,
+        256
+      ],
+      "id": "099e8b5a-d95c-492f-babf-9265a75adad9"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gemini-3-flash-preview",
+          "mode": "list",
+          "cachedResultName": "gemini-3-flash-preview"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are a sales intelligence researcher.\n\nYour task is to generate ONE Google search query written as a QUESTION.\n\nCompany:{{ $json.company }}\n\nThe question should help find recent business signals about the company such as:\n- expansion\n- hiring growth\n- funding\n- acquisitions\n- partnerships\n- product launches\n\nRules:\n- The output must be ONE natural question.\n- The question must include the company name.\n- Focus on recent growth or expansion activity.\n- Do NOT return JSON.\n- Do NOT include explanations.\n\nExample outputs:\nIs Salesforce expanding its business or launching new products recently?\nIs Zoom hiring aggressively or expanding into new markets recently?\nIs Shopify announcing new partnerships, acquisitions, or product launches recently?\n\nReturn ONLY the question."
+            },
+            {
+              "content": "You are a sales intelligence researcher.\n\nYour task is to generate ONE Google search query written as a QUESTION.\n\nThe question should help find recent business signals about a company such as:\n- expansion\n- hiring growth\n- funding\n- acquisitions\n- partnerships\n- product launches\n\nRules:\n- The output must be ONE natural question.\n- The question must include the company name.\n- Focus on recent growth or expansion activity.\n- Do NOT return JSON.\n- Do NOT include explanations.\n- Return ONLY the question text."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.ollama",
+      "typeVersion": 1,
+      "position": [
+        672,
+        -176
+      ],
+      "id": "0ed39062-66e5-4de5-8d1e-29df7a7fc3ba",
+      "name": "Message a model",
+      "credentials": {
+        "ollamaApi": {
+          "id": "0GXRgtwWrYvi3RpE",
+          "name": "Ollama account 5"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "snippet",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        1472,
+        -176
+      ],
+      "id": "3c22ac15-fd22-4f59-8281-a452b8c50709",
+      "name": "Split Out1"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gemini-3-flash-preview",
+          "mode": "list",
+          "cachedResultName": "gemini-3-flash-preview"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Extract the person's details and analyze the business intent from the following LinkedIn / news search result.\n\nName: {{ $json.name }}\nRole: {{ $json.role }}\nCompany: {{ $json.company }}\nEmail: {{ $json.email }}\n\n\nSnippet:{{ $json.snippet }}\n\nDetect business signals such as:\n- funding\n- hiring\n- expansion\n- product launch\n- partnership\n- acquisition\n\nReturn ONLY valid JSON.\n\n{\n \"intent_signal\": \"\",\n \"summary\": \"\",\n \"opportunity\": \"\"\n}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.ollama",
+      "typeVersion": 1,
+      "position": [
+        2144,
+        -112
+      ],
+      "id": "a28eb5d8-dbe5-4f83-910f-e7fc6d04f264",
+      "name": "Message a model1",
+      "credentials": {
+        "ollamaApi": {
+          "id": "0GXRgtwWrYvi3RpE",
+          "name": "Ollama account 5"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "let text = $json.content;\n\n// remove markdown if AI adds ```json\ntext = text.replace(/```json/g, '').replace(/```/g, '').trim();\n\nlet parsed = {};\n\ntry {\n  parsed = JSON.parse(text);\n} catch (e) {\n  parsed = {\n    name: \"\",\n    role: \"\",\n    company: \"\",\n    intent_signal: \"unknown\",\n    summary: \"Parsing failed\",\n    opportunity: \"N/A\"\n  };\n}\n\nreturn {\n  json: {\n\n    // ORIGINAL DATA\n    Name: parsed.name || $json.Name,\n    Role: parsed.role || $json.Role,\n    Company: parsed.company || $json.Company,\n    \"Email ID\": $json[\"Email ID\"],\n    Industry: $json.Industry,\n\n    title: $json.title,\n    link: $json.link,\n    snippet: $json.snippet,\n    source: $json.source,\n\n    // AI RESULTS\n    intent_signal: parsed.intent_signal,\n    summary: parsed.summary,\n    opportunity: parsed.opportunity\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2496,
+        -112
+      ],
+      "id": "82e0fc42-efe3-4efd-8760-ecda6daee17e",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gemini-3-flash-preview",
+          "mode": "list",
+          "cachedResultName": "gemini-3-flash-preview"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are a B2B outreach specialist.\n\nWrite a short personalized cold email based on the information below.\n\nName: {{ $json.name }}\nRole: {{ $json.role }}\nCompany: {{ $json.company }}\nEmail: {{ $json.email }}\nLinkedIn: {{ $json.linkedin }}\nCompany Website: {{ $json[\"company website\"] }}\n\nIntent Signal:\n{{ $json.intent_signal }}\n\nSummary:\n{{ $json.summary }}\n\nOpportunity:\n{{ $json.opportunity }}\n\nReturn ONLY valid JSON in this format:\n\n{\n \"name\":\"\",\n \"role\":\"\",\n \"company\":\"\",\n \"email\":\"\",\n \"linkedin\":\"\",\n \"company_website\":\"\",\n \"subject\":\"\",\n \"email_body\":\"\"\n}\n\nRules:\n- Keep the original values for name, role, company, email, linkedin, company_website.\n- Only generate subject and email_body.\n- Do not include markdown.\n- Do not include explanations.\n- Return JSON only."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.ollama",
+      "typeVersion": 1,
+      "position": [
+        2944,
+        -32
+      ],
+      "id": "deeb760c-4f0c-4801-b4c5-c432f13ec561",
+      "name": "Message a model2",
+      "credentials": {
+        "ollamaApi": {
+          "id": "0GXRgtwWrYvi3RpE",
+          "name": "Ollama account 5"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "google_ai_mode",
+        "q": "={{$json[\"content\"]}}",
+        "additionalFields": {},
+        "requestOptions": {}
+      },
+      "type": "n8n-nodes-serpapi.serpApi",
+      "typeVersion": 1,
+      "position": [
+        1024,
+        -176
+      ],
+      "id": "2c3dd5e1-43b3-46cd-a65d-8ea7c44b0e3b",
+      "name": "Google_ai_mode search",
+      "credentials": {
+        "serpApi": {
+          "id": "8tQ8teCjUleeLw8s",
+          "name": "SerpApi account 4"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "maxItems": 25
+      },
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        1696,
+        -176
+      ],
+      "id": "1623bf0c-0dd7-4ab0-b362-c55f4e84a875",
+      "name": "Limit"
+    },
+    {
+      "parameters": {
+        "jsCode": "let output = [];\n\nfor (const item of items) {\n\n  const blocks = item.json.text_blocks || [];\n\n  for (const block of blocks) {\n\n    if (block.snippet) {\n\n      output.push({\n        json: {\n          Name: item.json.name,\n          Role: item.json.role,\n          Company: item.json.company,\n          Email: item.json.email,\n          query: item.json.query,\n\n          snippet: block.snippet,\n          source: \"Google AI Mode\"\n        }\n      });\n\n    }\n\n  }\n\n}\n\nreturn output;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1248,
+        -176
+      ],
+      "id": "e5ef623d-09a1-43e4-8b1e-cbe1aaa988a3",
+      "name": "Code in JavaScript2"
+    },
+    {
+      "parameters": {
+        "jsCode": "let output = [];\n\nfor (const item of items) {\n\n  let text = item.json.content || item.json || \"\";\n\n  // convert object to string if needed\n  if (typeof text !== \"string\") {\n    text = JSON.stringify(text);\n  }\n\n  // remove markdown if present\n  text = text.replace(/```json/g, '').replace(/```/g, '').trim();\n\n  // fix escaped new lines\n  text = text.replace(/\\\\n/g, \" \");\n\n  // fix escaped quotes\n  text = text.replace(/\\\\\"/g, '\"');\n\n  try {\n\n    const parsed = JSON.parse(text);\n\n    output.push({\n      json: {\n        name: parsed.name || \"\",\n        role: parsed.role || \"\",\n        company: parsed.company || \"\",\n        email: parsed.email || \"\",\n        linkedin: parsed.linkedin || \"\",\n        company_website: parsed.company_website || \"\",\n        subject: parsed.subject || \"\",\n        email_body: parsed.email_body || \"\"\n      }\n    });\n\n  } catch (err) {\n\n    output.push({\n      json: {\n        error: \"Parsing failed\",\n        raw: text,\n        message: err.message\n      }\n    });\n\n  }\n\n}\n\nreturn output;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3296,
+        -32
+      ],
+      "id": "41ce2051-2791-4906-82ad-54eeedd52e33",
+      "name": "Code in JavaScript3"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1920,
+        -112
+      ],
+      "id": "b49ef9a8-a45c-46af-b89f-8d73eb0519cc",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        2720,
+        -32
+      ],
+      "id": "b9cd7ea4-2298-48e4-b3ec-0799092f74ea",
+      "name": "Merge1"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls",
+          "mode": "list",
+          "cachedResultName": "ICP",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1326576131,
+          "mode": "list",
+          "cachedResultName": "Verfied Email with content",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls/edit#gid=1326576131"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "name": "={{ $json.name }}",
+            "role": "={{ $json.role }}",
+            "company": "={{ $json.company }}",
+            "email": "={{ $json.email }}",
+            "linkedin": "={{ $json.linkedin }}",
+            "company website": "={{ $json['company website'] }}",
+            "subject": "={{ $json.subject }}",
+            "email_body": "={{ $json.email_body }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "role",
+              "displayName": "role",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "company",
+              "displayName": "company",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "linkedin",
+              "displayName": "linkedin",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "company website",
+              "displayName": "company website",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "subject",
+              "displayName": "subject",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "email_body",
+              "displayName": "email_body",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        3520,
+        -32
+      ],
+      "id": "6536f3b7-89bf-49c6-8c2e-a29cc81b522b",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "JEbTt0zril7zimiA",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "Personalized Mail Generating Automation\n\nStep 1 - Get the data from previous work flow which we collected the person details \n\nStep 2 - Generating Search Queries to find Intent Signal \n\nStep 3 - Search with AI Google Mode search and find the resources \n\nStep 4 -  Message Models finds the Intent signal and pain point of icp \n\nStep 5 - Generating the Personalized Message and email subject related to them individualy and store in sheet",
+        "height": 336,
+        "width": 352
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -48,
+        -256
+      ],
+      "typeVersion": 1,
+      "id": "0a85d065-c479-4ba6-91e6-fe672a66868d",
+      "name": "Sticky Note"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          },
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 1
+          }
+        ],
+        [
+          {
+            "node": "Replace Me",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Replace Me": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Google_ai_mode search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out1": {
+      "main": [
+        [
+          {
+            "node": "Limit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google_ai_mode search": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "Split Out1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model2": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript3": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Message a model1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge1": {
+      "main": [
+        [
+          {
+            "node": "Message a model2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "b29c7871-2d9e-42fe-be37-4a416e3edd10",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "261fd5aca1545bcb0a6afb7acb08f04ae3076b5defd23a381f7077f851be4d92"
+  },
+  "id": "ZGX8GOkHuIg4tPEr",
+  "tags": []
+}
