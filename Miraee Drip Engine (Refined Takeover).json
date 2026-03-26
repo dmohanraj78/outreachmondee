@@ -1,0 +1,326 @@
+{
+  "name": "Miraee Drip Engine (Refined Takeover)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "drip-enroll",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        100,
+        300
+      ],
+      "id": "webhook-trigger",
+      "name": "Drip Enrollment Webhook"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1759447022,
+          "mode": "list"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "status",
+              "logicalOperator": "EQUALS",
+              "lookupValue": "Sent"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        300,
+        300
+      ],
+      "id": "gs-fetch-outreach",
+      "name": "Fetch Sent Leads"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "filters": {
+          "q": "=from:{{ $json.email }}"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        500,
+        300
+      ],
+      "id": "gmail-check",
+      "name": "Check for Reply"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.length > 0 }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        700,
+        300
+      ],
+      "id": "if-replied",
+      "name": "Has Replied?"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1759447022
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "replied": "yes"
+          },
+          "matchingColumns": [
+            "email"
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        900,
+        150
+      ],
+      "id": "gs-mark-replied",
+      "name": "Mark as Replied"
+    },
+    {
+      "parameters": {
+        "amount": 24,
+        "unit": "hours"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        900,
+        450
+      ],
+      "id": "wait-node",
+      "name": "Delay Logic"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gemini-3-flash-preview",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=Write a short, professional follow-up email continuing from this message: '{{ $node['Fetch Sent Leads'].json.email_body }}'. Direct reference the previous content. Use their name: {{ $node['Fetch Sent Leads'].json.name }}. Original Subject: {{ $node['Fetch Sent Leads'].json.subject }}."
+            }
+          ]
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.ollama",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        450
+      ],
+      "id": "ai-personalizer",
+      "name": "AI Continuation Engine"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $node['Fetch Sent Leads'].json.email }}",
+        "subject": "Re: {{ $node['Fetch Sent Leads'].json.subject }}",
+        "message": "={{ $json.output }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1300,
+        450
+      ],
+      "id": "gmail-send",
+      "name": "Send Follow-up"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1759447022
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "drip status": "sent"
+          },
+          "matchingColumns": [
+            "email"
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1500,
+        450
+      ],
+      "id": "gs-update-sent",
+      "name": "Update Drip Status"
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1700,
+        300
+      ],
+      "id": "respond-node",
+      "name": "Respond to Dashboard"
+    }
+  ],
+  "connections": {
+    "Drip Enrollment Webhook": {
+      "main": [
+        [
+          {
+            "node": "Fetch Sent Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Sent Leads": {
+      "main": [
+        [
+          {
+            "node": "Check for Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check for Reply": {
+      "main": [
+        [
+          {
+            "node": "Has Replied?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Replied?": {
+      "main": [
+        [
+          {
+            "node": "Mark as Replied",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Delay Logic",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark as Replied": {
+      "main": [
+        [
+          {
+            "node": "Respond to Dashboard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delay Logic": {
+      "main": [
+        [
+          {
+            "node": "AI Continuation Engine",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Continuation Engine": {
+      "main": [
+        [
+          {
+            "node": "Send Follow-up",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Follow-up": {
+      "main": [
+        [
+          {
+            "node": "Update Drip Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Drip Status": {
+      "main": [
+        [
+          {
+            "node": "Respond to Dashboard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

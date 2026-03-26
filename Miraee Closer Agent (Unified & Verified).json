@@ -1,0 +1,476 @@
+{
+  "name": "Miraee Closer Agent (Unified & Verified)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "linkedin-closer",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        1056,
+        208
+      ],
+      "id": "9ad90852-2989-4e03-a973-ee6f8b88e604",
+      "name": "Webhook",
+      "webhookId": "095d659c-05b3-4c23-843e-b28b911bfebe"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gemini-3-flash-preview",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "You are the Senior Closer for Miraee Agentic OS. Your tone is professional, human, and helpful. \n\nMiraee USP: Agentic OS for Corporate Travel, Expense Auditing, and Disruption Management."
+            },
+            {
+              "content": "=Draft a personal LinkedIn connection note for {{ $json.name }} at \n{{ $json.company }}\nPrevious Mail Subject :{{ $json.subject }} \nPrevious Mail Body :{{ $json.email_body }}\n\nLinkedin profile: {{ $json.linkedin }}\n\nRules:\n- Max 300 characters.\n- Mention how Miraee handles [Topic] for companies like {{ $json.company }}\n- Close with: 'Would love to connect and share notes on this.'\n\nnote utilize the mail subject and body to know about our lead and create unique valuable message to them \n\nReturn only valid json and Do Not include code markdown and explanations\n\nReturn their linkedin profile also "
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.ollama",
+      "typeVersion": 1,
+      "position": [
+        1696,
+        208
+      ],
+      "id": "a37645a0-351a-4f3e-ba3a-b3cdc34039ce",
+      "name": "AI Personal Note",
+      "credentials": {
+        "ollamaApi": {
+          "id": "Nvj3vAClndnk6RHz",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "let raw = $json.content || \"\";\n\n// 1. Clean up the AI string (remove markdown/backticks)\nraw = raw.replace(/```json/g, '').replace(/```/g, '').trim();\n\nlet parsed = {};\n\ntry {\n    // 2. Parse the JSON string into an object\n    parsed = JSON.parse(raw);\n} catch (e) {\n    // Fallback if parsing fails\n    parsed = { \"connection_note\": raw, \"linkedin_profile\": \"\" };\n}\n\n// 3. Extract the Note\nconst note = parsed.connection_note || parsed.linkedin_connection_note || \"\";\n\n// 4. Extract the Profile URL and convert to URN\nconst profileUrl = parsed.linkedin_profile || \"\";\nlet urn = profileUrl;\nif (profileUrl.includes(\"linkedin.com/in/\")) {\n    // Extracts the handle from the URL\n    urn = profileUrl.split(\"linkedin.com/in/\")[1].split(\"/\")[0].split(\"?\")[0];\n}\n\n// 5. Final output for the next node\nreturn {\n  connection_note: note,\n  linkedin_id: urn,\n  linkedin_urn: \"urn:li:person:\" + urn\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2048,
+        208
+      ],
+      "id": "43927e20-2601-4d35-9daa-c220568447db",
+      "name": "Format LinkedIn ID"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"status\": \"success\", \"lead\": \"{{ $node[\"Webhook\"].json[\"lead_name\"] }}\" }",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        2656,
+        208
+      ],
+      "id": "61e95a71-96a5-4b95-b851-e4de233d933c",
+      "name": "Respond Success"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls",
+          "mode": "list",
+          "cachedResultName": "ICP",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1759447022,
+          "mode": "list",
+          "cachedResultName": "Verified Emails",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls/edit#gid=1759447022"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1264,
+        208
+      ],
+      "id": "f265fad4-a461-4a0d-b74f-56385bb2317f",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "KvqJRlFPzvWqVqdT",
+          "name": "Mondee"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        1072,
+        352
+      ],
+      "id": "96aea5a3-b1a2-434f-a381-c0ed10440219",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api19.unipile.com:14929/api/v1/users/invite",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-KEY",
+              "value": "Ii98ffnZ.MssKDhMrWtAkH/w7wtI678M1emqpwk+T7j+NJzIciUU="
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "account_id",
+              "value": "api19.unipile.com:14929"
+            },
+            {
+              "name": "provider_id",
+              "value": "={{ $json.linkedin_id }}"
+            },
+            {
+              "name": "message",
+              "value": "={{ $json.connection_note }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2256,
+        208
+      ],
+      "id": "71f4127a-0207-4cd5-8cde-bcf305ace150",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "b40a423b-0ddb-4b33-a45a-7a7ace2916e0",
+              "leftValue": "",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1472,
+        208
+      ],
+      "id": "3d2baa1a-72c1-4c89-ab30-7c2e3b99f5d6",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls",
+          "mode": "list",
+          "cachedResultName": "ICP",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1759447022,
+          "mode": "list",
+          "cachedResultName": "Verified Emails",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls/edit#gid=1759447022"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "row_number": "={{ $node[\"Webhook\"].json[\"row_number\"] }}",
+            "Connection request": "Invite Sent",
+            "Connection note": "={{ $('Format LinkedIn ID').item.json.connection_note }}"
+          },
+          "matchingColumns": [
+            "row_number"
+          ],
+          "schema": [
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "role",
+              "displayName": "role",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "company",
+              "displayName": "company",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "linkedin",
+              "displayName": "linkedin",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "company website",
+              "displayName": "company website",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "subject",
+              "displayName": "subject",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "email_body",
+              "displayName": "email_body",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Connection note",
+              "displayName": "Connection note",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Connection request",
+              "displayName": "Connection request",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2464,
+        208
+      ],
+      "id": "ac40708d-9a48-451d-8728-ae955e041275",
+      "name": "Update row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "KvqJRlFPzvWqVqdT",
+          "name": "Mondee"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Personal Note": {
+      "main": [
+        [
+          {
+            "node": "Format LinkedIn ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format LinkedIn ID": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "AI Personal Note",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "a006fca8-acfb-4874-a8cb-13f4b3e50911",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "82355c3d14754dee65ede1e84f37c59fa7612a6294b4b7f16c316226d270746b"
+  },
+  "id": "u8i393UkpImbnGZZ",
+  "tags": []
+}

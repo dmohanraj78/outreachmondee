@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Sparkles, Loader2, RefreshCw, Send, FileText } from 'lucide-react';
 import axios from 'axios';
 import { N8N_CONFIG } from '../config';
+import EmptyState from './EmptyState';
 
 const MailGenerator = () => {
   const [loading, setLoading] = useState(false);
@@ -40,19 +41,32 @@ const MailGenerator = () => {
     setLoading(true);
     try {
       await axios.post(N8N_CONFIG.PERSONALIZATION_WEBHOOK);
+      // Keep loading as true for a few seconds to account for n8n processing start
+      setTimeout(() => {
+        setLoading(false);
+        fetchPending();
+        fetchDrafts();
+      }, 5000);
       alert("AI personalization started! The dashboard will refresh automatically.");
     } catch (error) {
       alert("Failed to start personalization.");
-    } finally {
       setLoading(false);
     }
   };
 
-  // Filter leads to ONLY those that don't have a draft yet
+  // Filter leads to ONLY those that don't have a valid draft yet
   const filteredPending = pendingLeads.filter(lead => {
     const leadEmail = (lead.email || lead.Email || "").toLowerCase();
-    return !drafts.some(draft => (draft.email || draft.Email || "").toLowerCase() === leadEmail);
+    // Only exclude if there is a draft that HAS content or is Sent
+    return !drafts.some(draft => 
+      (draft.email || draft.Email || "").toLowerCase() === leadEmail && 
+      (draft.subject || draft.Subject || draft.email_body || draft.Body || (draft.status || draft.Status) === "Sent")
+    );
   });
+
+  const validDrafts = drafts.filter(d => 
+    (d.subject || d.Subject || d.email_body || d.Body || (d.status || d.Status) === "Sent")
+  );
 
   return (
     <div className="view-container">
@@ -77,7 +91,7 @@ const MailGenerator = () => {
           </button>
         </div>
 
-        {filteredPending.length > 0 && (
+        {filteredPending.length > 0 ? (
           <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
             <table>
               <thead>
@@ -98,25 +112,32 @@ const MailGenerator = () => {
               </tbody>
             </table>
           </div>
+        ) : (
+          <EmptyState 
+            icon={Sparkles}
+            title="All Caught Up!"
+            message="No leads waiting for personalization. Great job!"
+          />
         )}
       </div>
 
       <div className="card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
-          <div className="card-title" style={{ marginBottom: 0 }}>Generated Drafts ({drafts.length})</div>
+          <div className="card-title" style={{ marginBottom: 0 }}>Generated Drafts ({validDrafts.length})</div>
           <button onClick={fetchDrafts} className="btn-secondary">
             <RefreshCw size={14} /> Refresh List
           </button>
         </div>
         
-        {drafts.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '64px', color: 'var(--n100)', background: 'var(--n10)', borderRadius: '4px' }}>
-            <FileText size={48} style={{ opacity: 0.2, marginBottom: '16px' }} />
-            <p>No drafts generated yet. Trigger the AI process to begin.</p>
-          </div>
+        {validDrafts.length === 0 ? (
+          <EmptyState 
+            icon={FileText}
+            title="No Drafts Ready"
+            message="Your AI-generated email drafts will appear here once you trigger the personalization process."
+          />
         ) : (
           <div style={{ display: 'grid', gap: '16px' }}>
-            {drafts.map((d, i) => {
+            {validDrafts.map((d, i) => {
               const isSent = (d.status || d.Status) === "Sent";
               return (
                 <div key={i} style={{ border: '1px solid var(--n30)', borderRadius: '4px', padding: '24px', position: 'relative' }}>
@@ -130,8 +151,8 @@ const MailGenerator = () => {
                           <div style={{ fontSize: '12px', color: 'var(--n100)' }}>{d.email || d.Email} • {d.company || d.Company}</div>
                        </div>
                     </div>
-                    <span className={`status-badge ${isSent ? 'status-success' : 'status-warning'}`}>
-                       {isSent ? 'Sent' : 'Draft Ready'}
+                    <span className={`status-badge ${isSent ? 'status-success' : (d.subject || d.Subject || d.email_body || d.Body) ? 'status-warning' : 'status-neutral'}`}>
+                       {isSent ? 'Sent' : (d.subject || d.Subject || d.email_body || d.Body) ? 'Draft Ready' : 'AI Processing'}
                     </span>
                   </div>
                   

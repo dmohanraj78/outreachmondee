@@ -37,7 +37,7 @@ const EmailSender = () => {
     }
   };
 
-  const readyToSend = campaignData.filter(l => !(l.status || l.Status || "").trim());
+  const readyToSend = campaignData.filter(l => !(l.status || l.Status || "").trim() && (l.subject || l.Subject || l.email_body || l.Body));
   const sentHistory = campaignData.filter(l => (l.status || l.Status) === "Sent");
 
   return (

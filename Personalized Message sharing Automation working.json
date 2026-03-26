@@ -80,10 +80,10 @@
         "messages": {
           "values": [
             {
-              "content": "=You are a sales intelligence researcher.\n\nYour task is to generate ONE Google search query written as a QUESTION.\n\nCompany:{{ $json.company }}\n\nThe question should help find recent business signals about the company such as:\n- expansion\n- hiring growth\n- funding\n- acquisitions\n- partnerships\n- product launches\n\nRules:\n- The output must be ONE natural question.\n- The question must include the company name.\n- Focus on recent growth or expansion activity.\n- Do NOT return JSON.\n- Do NOT include explanations.\n\nExample outputs:\nIs Salesforce expanding its business or launching new products recently?\nIs Zoom hiring aggressively or expanding into new markets recently?\nIs Shopify announcing new partnerships, acquisitions, or product launches recently?\n\nReturn ONLY the question."
+              "content": "You are a Sales Intelligence Researcher for Miraee (Agentic OS for Travel/Expenses). Your goal is to help find 'Business Signals' that indicate a company is scaling, expanding, or growing its team. This helps identify companies whose travel and expense management complexity is increasing."
             },
             {
-              "content": "You are a sales intelligence researcher.\n\nYour task is to generate ONE Google search query written as a QUESTION.\n\nThe question should help find recent business signals about a company such as:\n- expansion\n- hiring growth\n- funding\n- acquisitions\n- partnerships\n- product launches\n\nRules:\n- The output must be ONE natural question.\n- The question must include the company name.\n- Focus on recent growth or expansion activity.\n- Do NOT return JSON.\n- Do NOT include explanations.\n- Return ONLY the question text."
+              "content": "=Generate ONE natural Google search query written as a QUESTION for {{ $json.company }}.\n\nFocus on signals such as:\n- New office openings or expansion into new cities\n- Aggressive hiring or team growth metrics\n- Recent funding rounds (Series A/B/C) or acquisitions\n- New partnerships or global product launches\n\nRules:\n- Output must be ONE natural question.\n- Include the company name.\n- Return ONLY the question text."
             }
           ]
         },
@@ -106,17 +106,16 @@
     },
     {
       "parameters": {
-        "fieldToSplitOut": "snippet",
-        "options": {}
+        "jsCode": "let output = [];\n\nfor (const item of items) {\n  const blocks = item.json.text_blocks || [];\n  // Consolidated all snippets into one text block for the AI to analyze together\n  let consolidatedContent = blocks.map(b => b.snippet).filter(s => s).join(\"\\n\\n---\\n\\n\");\n\n  output.push({\n    json: {\n      ...item.json, // PRESERVE ALL LEAD DATA\n      consolidated_snippets: consolidatedContent || \"No specific snippets found.\",\n      source: \"Google AI Mode\"\n    }\n  });\n}\n\nreturn output;"
       },
-      "type": "n8n-nodes-base.splitOut",
-      "typeVersion": 1,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
-        1472,
+        1248,
         -176
       ],
-      "id": "3c22ac15-fd22-4f59-8281-a452b8c50709",
-      "name": "Split Out1"
+      "id": "e5ef623d-09a1-43e4-8b1e-cbe1aaa988a3",
+      "name": "Consolidate Search Results"
     },
     {
       "parameters": {
@@ -129,7 +128,10 @@
         "messages": {
           "values": [
             {
-              "content": "=Extract the person's details and analyze the business intent from the following LinkedIn / news search result.\n\nName: {{ $json.name }}\nRole: {{ $json.role }}\nCompany: {{ $json.company }}\nEmail: {{ $json.email }}\n\n\nSnippet:{{ $json.snippet }}\n\nDetect business signals such as:\n- funding\n- hiring\n- expansion\n- product launch\n- partnership\n- acquisition\n\nReturn ONLY valid JSON.\n\n{\n \"intent_signal\": \"\",\n \"summary\": \"\",\n \"opportunity\": \"\"\n}"
+              "content": "You are a Sales Intelligence Researcher for Miraee (an Agentic OS for Corporate Travel & Expenses). \n\nYour Goal: Analyze business signals from search results to identify 'Pain Points' that Miraee solves for mid-range Indian companies.\n\nMiraee Solutions Map:\n- **Scale-Up / Funding**: Triggers the need for transparent financial auditing and automated reimbursement.\n- **New Hiring / Team Growth**: Increases travel volume; needs automated flight/hotel/cab booking compliance.\n- **Expanding to New Cities**: Increases travel complexity; requires Miraee's 'Disruption Management' (auto-rebooking for cancelled flights).\n- **Cost Cutting**: Needs strict adherence to corporate travel policies and budget limits."
+            },
+            {
+              "content": "=Analyze these search results for {{ $json.name }} at {{ $json.company }}:\n\n{{ $json.consolidated_snippets }}\n\nReturn EXACTLY this JSON format:\n{\n \"intent_signal\": \"The best business event found (e.g., Series B funding)\",\n \"summary\": \"A short summary.\",\n \"opportunity\": \"How Miraee specifically helps with this.\"\n}"
             }
           ]
         },
@@ -153,8 +155,9 @@
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "let text = $json.content;\n\n// remove markdown if AI adds ```json\ntext = text.replace(/```json/g, '').replace(/```/g, '').trim();\n\nlet parsed = {};\n\ntry {\n  parsed = JSON.parse(text);\n} catch (e) {\n  parsed = {\n    name: \"\",\n    role: \"\",\n    company: \"\",\n    intent_signal: \"unknown\",\n    summary: \"Parsing failed\",\n    opportunity: \"N/A\"\n  };\n}\n\nreturn {\n  json: {\n\n    // ORIGINAL DATA\n    Name: parsed.name || $json.Name,\n    Role: parsed.role || $json.Role,\n    Company: parsed.company || $json.Company,\n    \"Email ID\": $json[\"Email ID\"],\n    Industry: $json.Industry,\n\n    title: $json.title,\n    link: $json.link,\n    snippet: $json.snippet,\n    source: $json.source,\n\n    // AI RESULTS\n    intent_signal: parsed.intent_signal,\n    summary: parsed.summary,\n    opportunity: parsed.opportunity\n  }\n};"
+        "jsCode": "let text = $json.content;\n\n// remove markdown if AI adds ```json\ntext = text.replace(/```json/g, '').replace(/```/g, '').trim();\n\nlet parsed = {};\n\ntry {\n  parsed = JSON.parse(text);\n} catch (e) {\n  parsed = {\n    intent_signal: \"unknown\",\n    summary: \"Parsing failed\",\n    opportunity: \"N/A\"\n  };\n}\n\nreturn {\n  json: {\n    ...$json,\n    intent_signal: parsed.intent_signal || \"unknown\",\n    summary: parsed.summary || \"Could not analyze snippet\",\n    opportunity: parsed.opportunity || \"Manual review recommended\"\n  }\n};"
       },
+
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -175,7 +178,10 @@
         "messages": {
           "values": [
             {
-              "content": "=You are a B2B outreach specialist.\n\nWrite a short personalized cold email based on the information below.\n\nName: {{ $json.name }}\nRole: {{ $json.role }}\nCompany: {{ $json.company }}\nEmail: {{ $json.email }}\nLinkedIn: {{ $json.linkedin }}\nCompany Website: {{ $json[\"company website\"] }}\n\nIntent Signal:\n{{ $json.intent_signal }}\n\nSummary:\n{{ $json.summary }}\n\nOpportunity:\n{{ $json.opportunity }}\n\nReturn ONLY valid JSON in this format:\n\n{\n \"name\":\"\",\n \"role\":\"\",\n \"company\":\"\",\n \"email\":\"\",\n \"linkedin\":\"\",\n \"company_website\":\"\",\n \"subject\":\"\",\n \"email_body\":\"\"\n}\n\nRules:\n- Keep the original values for name, role, company, email, linkedin, company_website.\n- Only generate subject and email_body.\n- Do not include markdown.\n- Do not include explanations.\n- Return JSON only."
+              "content": "You are a Senior B2B Outreach Specialist for Miraee. \n\nProduct Profile:\n- **Miraee Agentic OS**: A single hub for all corporate travel, accommodation, and expenses.\n- **Disruption Management**: AI agents monitor flights 24/7. If a flight is cancelled/delayed, Miraee notifies the user, suggests the best alternative, and books it automatically upon approval.\n- **Expense Governance**: Receipts are parsed via photo and audited instantly for policy compliance and accounting submission.\n- **Policy Control**: Automatically filters for flights/hotels that match company-approved budget limits.\n\nTone: Professional, helpful, and value-oriented. Target Indian mid-range startups looking to optimize their operational overhead."
+            },
+            {
+              "content": "=Generate a personalized email for {{ $json.name }} at {{ $json.company }}.\n\nContext:\n- Intent Signal: {{ $json.intent_signal }}\n- Summary: {{ $json.summary }}\n- Opportunity: {{ $json.opportunity }}\n\nInstructions:\n1. Open by relating Miraee's Agentic OS to their {{ $json.intent_signal }}.\n2. Highlight how our 'Disruption Management' handles travel headaches so their team can focus on growth.\n3. Mention the ease of 'Expense Auditing' via simple photo uploads.\n4. Call to action: A quick 10-minute demo of the Miraee Hub.\n\nRules:\n- DO NOT use placeholders like $NAME$ or [Company Name].\n- Use the actual name provided: {{ $json.name }}.\n- Return ONLY JSON with 'subject' and 'email_body'."
             }
           ]
         },
@@ -218,35 +224,10 @@
         }
       }
     },
+
     {
       "parameters": {
-        "maxItems": 25
-      },
-      "type": "n8n-nodes-base.limit",
-      "typeVersion": 1,
-      "position": [
-        1696,
-        -176
-      ],
-      "id": "1623bf0c-0dd7-4ab0-b362-c55f4e84a875",
-      "name": "Limit"
-    },
-    {
-      "parameters": {
-        "jsCode": "let output = [];\n\nfor (const item of items) {\n\n  const blocks = item.json.text_blocks || [];\n\n  for (const block of blocks) {\n\n    if (block.snippet) {\n\n      output.push({\n        json: {\n          Name: item.json.name,\n          Role: item.json.role,\n          Company: item.json.company,\n          Email: item.json.email,\n          query: item.json.query,\n\n          snippet: block.snippet,\n          source: \"Google AI Mode\"\n        }\n      });\n\n    }\n\n  }\n\n}\n\nreturn output;"
-      },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1248,
-        -176
-      ],
-      "id": "e5ef623d-09a1-43e4-8b1e-cbe1aaa988a3",
-      "name": "Code in JavaScript2"
-    },
-    {
-      "parameters": {
-        "jsCode": "let output = [];\n\nfor (const item of items) {\n\n  let text = item.json.content || item.json || \"\";\n\n  // convert object to string if needed\n  if (typeof text !== \"string\") {\n    text = JSON.stringify(text);\n  }\n\n  // remove markdown if present\n  text = text.replace(/```json/g, '').replace(/```/g, '').trim();\n\n  // fix escaped new lines\n  text = text.replace(/\\\\n/g, \" \");\n\n  // fix escaped quotes\n  text = text.replace(/\\\\\"/g, '\"');\n\n  try {\n\n    const parsed = JSON.parse(text);\n\n    output.push({\n      json: {\n        name: parsed.name || \"\",\n        role: parsed.role || \"\",\n        company: parsed.company || \"\",\n        email: parsed.email || \"\",\n        linkedin: parsed.linkedin || \"\",\n        company_website: parsed.company_website || \"\",\n        subject: parsed.subject || \"\",\n        email_body: parsed.email_body || \"\"\n      }\n    });\n\n  } catch (err) {\n\n    output.push({\n      json: {\n        error: \"Parsing failed\",\n        raw: text,\n        message: err.message\n      }\n    });\n\n  }\n\n}\n\nreturn output;"
+        "jsCode": "let output = [];\n\nfor (const item of items) {\n\n  let text = item.json.content || item.json || \"\";\n\n  // convert object to string if needed\n  if (typeof text !== \"string\") {\n    text = JSON.stringify(text);\n  }\n\n  // remove markdown if present\n  text = text.replace(/```json/g, '').replace(/```/g, '').trim();\n\n  // fix escaped new lines and quotes\n  text = text.replace(/\\\\n/g, \" \").replace(/\\\\\"/g, '\"');\n\n  let parsed = {};\n\n  try {\n    parsed = JSON.parse(text);\n  } catch (err) {\n    parsed = { \n      subject: \"Meeting Request: Miraee Agentic OS\",\n      email_body: \"Hi, I tried to reach out but had an issue generating the personalized message. I'd love to show you how Miraee can simplify your travel and expenses.\"\n    };\n  }\n\n  output.push({\n    json: {\n      ...item.json, // PRESERVE ALL ORIGINAL DATA (including row_number)\n      name: parsed.name || item.json.name || item.json.Name || \"\",\n      subject: parsed.subject || \"\",\n      email_body: parsed.email_body || \"\"\n    }\n  });\n\n}\n\nreturn output;"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -287,9 +268,10 @@
       "id": "b9cd7ea4-2298-48e4-b3ec-0799092f74ea",
       "name": "Merge1"
     },
+
     {
       "parameters": {
-        "operation": "append",
+        "operation": "update",
         "documentId": {
           "__rl": true,
           "value": "1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls",
@@ -299,73 +281,24 @@
         },
         "sheetName": {
           "__rl": true,
-          "value": 1326576131,
+          "value": 1759447022,
           "mode": "list",
-          "cachedResultName": "Verfied Email with content",
-          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls/edit#gid=1326576131"
+          "cachedResultName": "Verified Emails",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls/edit#gid=1759447022"
         },
         "columns": {
           "mappingMode": "defineBelow",
           "value": {
-            "name": "={{ $json.name }}",
-            "role": "={{ $json.role }}",
-            "company": "={{ $json.company }}",
-            "email": "={{ $json.email }}",
-            "linkedin": "={{ $json.linkedin }}",
-            "company website": "={{ $json['company website'] }}",
             "subject": "={{ $json.subject }}",
             "email_body": "={{ $json.email_body }}"
           },
-          "matchingColumns": [],
+          "matchingColumns": [
+            "row_number"
+          ],
           "schema": [
             {
-              "id": "name",
-              "displayName": "name",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true
-            },
-            {
-              "id": "role",
-              "displayName": "role",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true
-            },
-            {
-              "id": "company",
-              "displayName": "company",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true
-            },
-            {
-              "id": "email",
-              "displayName": "email",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true
-            },
-            {
-              "id": "linkedin",
-              "displayName": "linkedin",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true
-            },
-            {
-              "id": "company website",
-              "displayName": "company website",
+              "id": "row_number",
+              "displayName": "row_number",
               "required": false,
               "defaultMatch": false,
               "display": true,
@@ -389,15 +322,6 @@
               "display": true,
               "type": "string",
               "canBeUsedToMatch": true
-            },
-            {
-              "id": "status",
-              "displayName": "status",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true
             }
           ],
           "attemptToConvertTypes": false,
@@ -412,7 +336,7 @@
         -32
       ],
       "id": "6536f3b7-89bf-49c6-8c2e-a29cc81b522b",
-      "name": "Append row in sheet",
+      "name": "Update row in sheet",
       "credentials": {
         "googleSheetsOAuth2Api": {
           "id": "JEbTt0zril7zimiA",
@@ -510,11 +434,33 @@
         ]
       ]
     },
-    "Split Out1": {
+    "Google_ai_mode search": {
       "main": [
         [
           {
-            "node": "Limit",
+            "node": "Consolidate Search Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consolidate Search Results": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Message a model1",
             "type": "main",
             "index": 0
           }
@@ -543,33 +489,11 @@
         ]
       ]
     },
-    "Google_ai_mode search": {
+    "Merge1": {
       "main": [
         [
           {
-            "node": "Code in JavaScript2",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Limit": {
-      "main": [
-        [
-          {
-            "node": "Merge",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Code in JavaScript2": {
-      "main": [
-        [
-          {
-            "node": "Split Out1",
+            "node": "Message a model2",
             "type": "main",
             "index": 0
           }
@@ -592,28 +516,6 @@
         [
           {
             "node": "Append row in sheet",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Merge": {
-      "main": [
-        [
-          {
-            "node": "Message a model1",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Merge1": {
-      "main": [
-        [
-          {
-            "node": "Message a model2",
             "type": "main",
             "index": 0
           }

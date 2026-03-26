@@ -1,0 +1,495 @@
+{
+  "name": "verified lead founder form version",
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "let query = $json[\"Target Industry / Query\"] || \"SaaS companies\";\nlet signal = $json[\"signal\"] || \"Series B funding\";\nlet filter = $json[\"filter\"] || \"India mid-range (50-500 employees)\";\nreturn [{ json: { Query: query, Signal: signal, Filter: filter } }];"
+      },
+      "id": "a9967c19-bc9b-40d7-9a92-1aa5de3b2f96",
+      "name": "Unified Input Logic",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        9584,
+        1472
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "let query = ($json.Query || \"\").trim();\nlet filter = ($json.Filter || \"\").trim();\nlet signal = ($json.Signal || \"\").trim();\nlet defaultFilter = 'india startup \"Series A\" OR \"Series B\" OR \"Series C\" -enterprise -mnc -global';\nlet finalQuery = `${query} ${signal} ${filter || defaultFilter}`;\nreturn { ...$json, final_query: finalQuery };"
+      },
+      "id": "15057910-ad2d-4312-adf6-fc7c11ff2ec7",
+      "name": "Query Refiner",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        9808,
+        1472
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://google.serper.dev/search",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-KEY",
+              "value": "96496d9d3d34fcdcfc0026bb8d94cb0b9777b648"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"q\": $json.final_query, \"num\": 10 } }}",
+        "options": {}
+      },
+      "id": "4857468c-bcd5-46c8-af06-b3a44dd2ce49",
+      "name": "Serper Company Search",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        10032,
+        1472
+      ]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gemini-3-flash-preview",
+          "mode": "list",
+          "cachedResultName": "gemini-3-flash-preview"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "\"You are a strict data extraction engine. Your goal is to identify Indian mid-range companies (50–500 employees, startups in Series A-C) from search results. You must ignore massive corporations (like TCS, Reliance, Google) and very small businesses. You always output valid JSON only.\""
+            },
+            {
+              "content": "=\"Analyze these search results and extract the names of 3-5 INDIAN companies that are MID-RANGE startups (growing, 50-500 employees, Series A/B/C).\n\nSearch Results: {{ $json.organic }}\n\nOutput Requirement: Output ONLY a JSON array in this exact format: [{\"company\":\"Name\", \"website\":\"URL\"}]\""
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "8e4dd523-8518-440f-b18d-0043b37df977",
+      "name": "Ollama (AI Filter)",
+      "type": "@n8n/n8n-nodes-langchain.ollama",
+      "typeVersion": 1,
+      "position": [
+        10256,
+        1472
+      ],
+      "credentials": {
+        "ollamaApi": {
+          "id": "ZslEvgkqBzKx2jBJ",
+          "name": "Ollama account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "let raw = $json.content || $json.response || $json.text || \"\";\nraw = raw.replace(/```json/g, \"\").replace(/```/g, \"\").trim();\ntry { return JSON.parse(raw).map(item => ({ json: item })); } catch (e) { return []; }"
+      },
+      "id": "81e07c82-230f-4575-9974-e228cc12064e",
+      "name": "AI Output Parser",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        10608,
+        1472
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://google.serper.dev/search",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-KEY",
+              "value": "96496d9d3d34fcdcfc0026bb8d94cb0b9777b648"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"q\": \"site:linkedin.com/in \" + $json.company + \" CEO Founder\", \"num\": 1 } }}",
+        "options": {}
+      },
+      "id": "2d04af3b-36ed-4d5f-a533-65a14062db82",
+      "name": "Serper LinkedIn Search",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        10832,
+        1472
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Get all AI results to sync back the company/website info\nlet aiResults = $(\"AI Output Parser\").all();\n\n// 2. Process EVERY search result from Serper\nreturn $input.all().map((item, index) => {\n  let result = item.json.organic?.[0] || {};\n  let title = result.title || \"\";\n  let snippet = result.snippet || \"\";\n  \n  // SYNC: Get the corresponding company/website from the AI Parser node\n  let originalData = aiResults[index]?.json || {};\n\n  // 3. Clean up name from title\n  let namePart = title.split(\"-\")[0].split(\"|\")[0].split(\"–\")[0].trim();\n  let parts = namePart.split(\" \");\n  let first_name = parts[0] || \"\";\n  let last_name = parts.slice(1).join(\" \") || \"\";\n\n  // 4. 🔍 Snippet Recovery (for initials like \"Madhusudan E.\")\n  if (last_name.length < 2 && snippet.includes(first_name)) {\n    let snippetMatches = snippet.match(new RegExp(first_name + \"\\\\s+([A-Z][a-z]+)\", \"i\"));\n    if (snippetMatches && snippetMatches[1]) {\n      last_name = snippetMatches[1];\n      namePart = first_name + \" \" + last_name;\n    }\n  }\n\n  // 5. 🧹 Strip protocols from domain\n  let rawDomain = originalData.website || originalData.domain || \"\";\n  let cleanDomain = rawDomain\n    .replace(/^https?:\\/\\//, \"\")\n    .replace(/^www\\./, \"\")\n    .split(\"/\")[0];\n\n  // 🚫 SKIP: If last name is STILL missing or too short\n  if (last_name.length < 2) return null;\n\n  return {\n    json: {\n      company: originalData.company,\n      domain: cleanDomain,\n      full_name: namePart,\n      first_name: first_name,\n      last_name: last_name,\n      linkedin: result.link\n    }\n  };\n}).filter(i => i !== null);"
+      },
+      "id": "f69f6274-b343-414b-b046-117e94427196",
+      "name": "Extract Name",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        11056,
+        1472
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://api.hunter.io/v2/email-finder",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "domain",
+              "value": "={{ $json.domain }}"
+            },
+            {
+              "name": "first_name",
+              "value": "={{ $json.first_name }}"
+            },
+            {
+              "name": "last_name",
+              "value": "={{ $json.last_name }}"
+            },
+            {
+              "name": "api_key",
+              "value": "092ff31599591d2603476c1612f61cb2e3cac4fc"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "472f6560-fe8b-45a3-b58b-5c10c46fe810",
+      "name": "Hunter Email Finder",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        11280,
+        1472
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls",
+          "mode": "list",
+          "cachedResultName": "ICP",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1759447022,
+          "mode": "list",
+          "cachedResultName": "Verified Emails",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls/edit#gid=1759447022"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "name": "={{ $json.name }}",
+            "company": "={{ $json.company }}",
+            "email": "={{ $json.email }}",
+            "linkedin": "={{ $json.linkedin }}",
+            "company website": "={{ $json.website }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "role",
+              "displayName": "role",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "company",
+              "displayName": "company",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "linkedin",
+              "displayName": "linkedin",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "company website",
+              "displayName": "company website",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "subject",
+              "displayName": "subject",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "email_body",
+              "displayName": "email_body",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "1cd60fa1-c53b-408f-9c64-8ba1c9a48198",
+      "name": "Google Sheets Output",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        11712,
+        1472
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "KvqJRlFPzvWqVqdT",
+          "name": "Mondee"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Sync with the 'Extract Name' node to get the Name, Company, and LinkedIn\nlet leads = $(\"Extract Name\").all();\n\n// Use $input.all().map() to process every lead from Hunter.io\nreturn $input.all().map((item, index) => {\n  let email = item.json.data?.email;\n\n  // 🚫 SKIP: If no email was found, we filter this person out\n  if (!email) {\n    return null;\n  }\n\n  // SYNC: Get the matching info from the Extract Name node\n  let leadInfo = leads[index]?.json || {};\n\n  // 3. Return ONLY the specific fields you need\n  return {\n    json: {\n      name: leadInfo.full_name,\n      company: leadInfo.company,\n      website: leadInfo.domain,\n      linkedin: leadInfo.linkedin,\n      email: email\n    }\n  };\n}).filter(i => i !== null); // This removes the empty email leads\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        11488,
+        1472
+      ],
+      "id": "a03318eb-6a22-485f-9151-91c7a922c064",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "mail-input",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        9344,
+        1472
+      ],
+      "id": "97cf443e-93d9-4e13-aeba-3a330cbd531b",
+      "name": "Webhook",
+      "webhookId": "c21bb28a-d21c-49fb-ba0e-5c3e1fccf743"
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        11920,
+        1472
+      ],
+      "id": "2d763020-3bb8-475b-8e74-0a59c19b8007",
+      "name": "Respond to Webhook"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Unified Input Logic": {
+      "main": [
+        [
+          {
+            "node": "Query Refiner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Refiner": {
+      "main": [
+        [
+          {
+            "node": "Serper Company Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Serper Company Search": {
+      "main": [
+        [
+          {
+            "node": "Ollama (AI Filter)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama (AI Filter)": {
+      "main": [
+        [
+          {
+            "node": "AI Output Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Output Parser": {
+      "main": [
+        [
+          {
+            "node": "Serper LinkedIn Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Serper LinkedIn Search": {
+      "main": [
+        [
+          {
+            "node": "Extract Name",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Name": {
+      "main": [
+        [
+          {
+            "node": "Hunter Email Finder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hunter Email Finder": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Unified Input Logic",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets Output": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "7fb98839-994f-474e-9627-9764b0bf7b90",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "82355c3d14754dee65ede1e84f37c59fa7612a6294b4b7f16c316226d270746b"
+  },
+  "id": "mBL0cSUzb1WmLoub",
+  "tags": []
+}

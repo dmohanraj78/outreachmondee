@@ -1,0 +1,198 @@
+{
+  "name": "LinkedIn Social Ghost (LinkedIn-Optimized)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "daily-social-research",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        4144,
+        1088
+      ],
+      "id": "99a70fff-790d-459d-99f6-fea0703ea02e",
+      "name": "Webhook",
+      "webhookId": "62e1b985-0a11-41a0-9d2a-83bdcebeab22"
+    },
+    {
+      "parameters": {
+        "q": "=site:linkedin.com/posts {{ $json.body.query }}",
+        "location": "India",
+        "additionalFields": {},
+        "requestOptions": {}
+      },
+      "type": "n8n-nodes-serpapi.serpApi",
+      "typeVersion": 1,
+      "position": [
+        4368,
+        1088
+      ],
+      "id": "f7b4971d-198e-4f9b-8d02-bceb46491041",
+      "name": "SerpApi",
+      "credentials": {
+        "serpApi": {
+          "id": "jewsq6Skxr9W1pHF",
+          "name": "dhanushm.raja"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const results = [];\nconst seenLinks = new Set();\n\nconst addResult = (link, title, snippet) => {\n  if (link && link.includes('linkedin.com/') && !seenLinks.has(link)) {\n    seenLinks.add(link);\n    results.push({ \n      json: { \n        title: title || \"New LinkedIn Post\", \n        link: link, \n        snippet: snippet || title || \"No context available\" \n      } \n    });\n  }\n};\n\n// 1. Process Organic Results\nconst organic = $node[\"SerpApi\"].json.organic_results;\nif (organic && Array.isArray(organic)) {\n  organic.forEach(res => {\n    addResult(res.link, res.title, res.snippet);\n  });\n}\n\n// 2. Process Perspectives (The feature you found!)\nconst perspectives = $node[\"SerpApi\"].json.perspectives;\nif (perspectives && Array.isArray(perspectives)) {\n  perspectives.forEach(res => {\n    const link = res.link || res.link_url || res.url;\n    addResult(link, res.title, res.snippet || res.title);\n  });\n}\n\nreturn results.slice(0, 3); // Returns top 3 unique posts\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4592,
+        1088
+      ],
+      "id": "37bd04ad-dd32-476e-b256-52f26c8a61e6",
+      "name": "LinkedIn Filter"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gemini-3-flash-preview",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "You are the Voice of Miraee Agentic OS. Miraee is the single hub that simplifies corporate travel, accommodation, and expenses.\nCore Miraee DNA:\n- One-Stop Hub: Manages flights, hotels, cabs, events, and summits in one place.\n- Disruption Management: AI agents monitor cancellations (weather/tech) in real-time, suggest immediate alternatives, and auto-book upon user approval.\n- Policy & Budget Compliance: Searches automatically filter for company-approved travel policies and budget ranges.\n- Instant Expense Management: Users snap a photo of receipts; Miraee parses them, tags them to the trip, and notifies accounting for 1-click auditing and reimbursement.\n- End-to-End: From the first booking to final financial audit reports.\nYour Task:\nAnalyze the provided LinkedIn post. Draft 3 insightful comments. \nGoal: Position Miraee as the solution to the problems mentioned (e.g., travel chaos, expense manual work, policy bypass, or cancellation stress).\nTone: Professional, expert, and proactive.\nFormat: Bold Headers. No hashtags. Under 3 sentences per option."
+            },
+            {
+              "content": "=PROMPT FOR MIRAEE ANALYST:\nI found a trending post on LinkedIn that needs a Miraee-level response.\nPOST TITLE: {{ $json.title }}\nURL: {{ $json.link }}\nPOST CONTEXT: {{ $json.snippet }}\nDRAFT 3 RESPONSE OPTIONS:\n1. **The Visionary Perspective** (Focus on the industry's future)\n2. **The Efficiency Perspective** (Focus on how Miraee replaces the manual work)\n3. **The 'Agentic' Perspective** (Focus on how our AI agents solve this specific pain point)\nAlways conclude with a professional tone that invites discussion.\nInstructions: 3 options, under 3 sentences each. Professional tone.\n\nInstruction: Provide 3 clear options. Separate each option with a double line break. Use bold for headers.\n\nFormat: Option 1: [Perspective Name] [Comment Text]"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.ollama",
+      "typeVersion": 1,
+      "position": [
+        4816,
+        1088
+      ],
+      "id": "800ba88f-e7e6-4238-ba05-c27fedd58bb9",
+      "name": "Ollama",
+      "credentials": {
+        "ollamaApi": {
+          "id": "Nvj3vAClndnk6RHz",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "dhanushmohanraj78@gmail.com",
+        "subject": "={{ \" LinkedIn Opportunity: \" + $node[\"LinkedIn Filter\"].json[\"title\"].substring(0, 50) + \"...\" }}\n",
+        "message": "=<h3>Expert LinkedIn Opportunity Found!</h3>\n<p><strong>Topic:</strong> <a href=\"{{ $node[\"LinkedIn Filter\"].json[\"link\"] }}\" style=\"color: #FA4D33; font-weight: bold;\">{{ $node[\"LinkedIn Filter\"].json[\"title\"] }}</a></p>\n\n<div style=\"background-color: #F9F4F0; padding: 24px; border-radius: 12px; border-left: 5px solid #4F001D; margin: 20px 0;\">\n  <h4 style=\"margin-top: 0; color: #4F001D;\">Proposed Comments:</h4>\n  <div style=\"white-space: pre-wrap; line-height: 1.6; color: #172B4D;\">{{ $json.content }}</div>\n</div>\n\n<p style=\"font-size: 13px; color: #7A869A;\">Click the link above to view the post, paste your favorite draft, and win the feed!</p>\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        5168,
+        1088
+      ],
+      "id": "72650bed-a3bd-417b-8c51-a8f4796f3da0",
+      "name": "Gmail",
+      "webhookId": "8f6f34ae-5b14-464e-ad3d-20a3f2bb1618",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "XUCCI55l9hzYKkqI",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"title\": \"{{ $node[\"LinkedIn Filter\"].json[\"title\"] }}\",\n  \"link\": \"{{ $node[\"LinkedIn Filter\"].json[\"link\"] }}\",\n  \"content\": \"{{ $node[\"Ollama\"].json[\"content\"] }}\"\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        5376,
+        1088
+      ],
+      "id": "4383b95f-aa6b-4dc6-844d-9336e0d6b4eb",
+      "name": "Respond to Webhook"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "SerpApi",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SerpApi": {
+      "main": [
+        [
+          {
+            "node": "LinkedIn Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LinkedIn Filter": {
+      "main": [
+        [
+          {
+            "node": "Ollama",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama": {
+      "main": [
+        [
+          {
+            "node": "Gmail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "ebfe19a4-64cc-4067-ab18-c69f7187b738",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "82355c3d14754dee65ede1e84f37c59fa7612a6294b4b7f16c316226d270746b"
+  },
+  "id": "pjAHEC2vfHWtINSq",
+  "tags": []
+}
