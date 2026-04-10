@@ -72,7 +72,7 @@
               "content": "You are a Sales Intelligence Researcher for Miraee (Agentic OS for Travel/Expenses). Your goal is to help find 'Business Signals' that indicate a company is scaling, expanding, or growing its team. This helps identify companies whose travel and expense management complexity is increasing."
             },
             {
-              "content": "=Generate ONE natural Google search query written as a QUESTION for {{ $json.company }}.\n\nFocus on signals such as:\n- New office openings or expansion into new cities\n- Aggressive hiring or team growth metrics\n- Recent funding rounds (Series A/B/C) or acquisitions\n- New partnerships or global product launches\n\nRules:\n- Output must be ONE natural question.\n- Include the company name.\n- Return ONLY the question text."
+              "content": "=Generate ONE 'Precision' 2026-style Google search query to find the most recent social hooks for {{ $json.company }}.\n\nFocus on these specific sources:\n- site:linkedin.com/posts\n- site:twitter.com OR site:x.com\n- site:{{ $json.company.toLowerCase().replace(/ /g, '') }}.com/blog\n\nKeywords: (announcement OR \"hiring\" OR \"launch\" OR \"thrilled to share\")\n\nRules:\n- Be concise. Do NOT clutter with too many OR operators.\n- Format as a valid Google Search string.\n- Return ONLY the query text."
             }
           ]
         },
@@ -120,7 +120,7 @@
               "content": "You are a Sales Intelligence Researcher for Miraee (an Agentic OS for Corporate Travel & Expenses). \n\nYour Goal: Analyze business signals from search results to identify 'Pain Points' that Miraee solves for mid-range Indian companies.\n\nMiraee Solutions Map:\n- **Scale-Up / Funding**: Triggers the need for transparent financial auditing and automated reimbursement.\n- **New Hiring / Team Growth**: Increases travel volume; needs automated flight/hotel/cab booking compliance.\n- **Expanding to New Cities**: Increases travel complexity; requires Miraee's 'Disruption Management' (auto-rebooking for cancelled flights).\n- **Cost Cutting**: Needs strict adherence to corporate travel policies and budget limits."
             },
             {
-              "content": "=Analyze these search results for {{ $json.name }} at {{ $json.company }}:\n\n{{ $json.consolidated_snippets }}\n\nReturn EXACTLY this JSON format:\n{\n \"intent_signal\": \"The best business event found (e.g., Series B funding)\",\n \"summary\": \"A short summary.\",\n \"opportunity\": \"How Miraee specifically helps with this.\"\n}"
+              "content": "=Analyze these 2026 search results for {{ $json.name }} at {{ $json.company }} to find a high-conversion 'Narrative Hook'.\n\nSearch Results:\n{{ $json.consolidated_snippets }}\n\nStep 1: Identify the strongest available 'Operational Hook' from these categories:\n- **Social/POV Hook**: A recent thought-leadership post or social update.\n- **Agentic Gap Hook**: An expansion or hiring spree that indicates their T&E management is about to break.\n- **Milestone Hook**: A product launch, funding round (Series A-C), or city expansion.\n\nStep 2: Define the 'Agentic Gap'. How does Miraee's autonomous tech solve their specific scaling pain better than traditional tools?\n\nReturn EXACTLY this JSON format:\n{\n \"hook_type\": \"Social/Agentic/Milestone\",\n \"intent_signal\": \"Brief description of the trigger event\",\n \"hook_evidence\": \"The specific quote or detail to reference in the intro\",\n \"miraee_value\": \"The specific Miraee feature (Disruption Management/Expense Governance) that fits this signal.\"\n}"
             }
           ]
         },
@@ -169,7 +169,7 @@
               "content": "You are a Senior B2B Outreach Specialist for Miraee. \n\nProduct Profile:\n- **Miraee Agentic OS**: A single hub for all corporate travel, accommodation, and expenses.\n- **Disruption Management**: AI agents monitor flights 24/7. If a flight is cancelled/delayed, Miraee notifies the user, suggests the best alternative, and books it automatically upon approval.\n- **Expense Governance**: Receipts are parsed via photo and audited instantly for policy compliance and accounting submission.\n- **Policy Control**: Automatically filters for flights/hotels that match company-approved budget limits.\n\nTone: Professional, helpful, and value-oriented. Target Indian mid-range startups looking to optimize their operational overhead."
             },
             {
-              "content": "=Generate a personalized email for {{ $json.name }} at {{ $json.company }}.\n\nContext:\n- Intent Signal: {{ $json.intent_signal }}\n- Summary: {{ $json.summary }}\n- Opportunity: {{ $json.opportunity }}\n\nInstructions:\n1. Open by relating Miraee's Agentic OS to their {{ $json.intent_signal }}.\n2. Highlight how our 'Disruption Management' handles travel headaches so their team can focus on growth.\n3. Mention the ease of 'Expense Auditing' via simple photo uploads.\n4. Call to action: A quick 10-minute demo of the Miraee Hub.\n\nRules:\n- DO NOT use placeholders like $NAME$ or [Company Name].\n- Use the actual name provided: {{ $json.name }}.\n- Return ONLY JSON with 'subject' and 'email_body'."
+              "content": "=Generate a 2026-style personalized outreach email for {{ $json.name }} at {{ $json.company }}.\n\nIntelligence Context:\n- Hook Type: {{ $json.hook_type }}\n- Signal: {{ $json.intent_signal }}\n- Hook Evidence: {{ $json.hook_evidence }}\n- Miraee Value focus: {{ $json.miraee_value }}\n\nEmail Framework (4 Steps):\n1. **The Hook**: Open by referencing the {{ $json.hook_evidence }}. Make it feel personal and high-context (no generic news intros).\n2. **The Insight**: Bridge from the hook to an operational challenge. E.g., 'Scaling that fast usually means your T&E strategy starts to hit a complexity ceiling.'\n3. **The Agentic Solution**: Introduce Miraee as an Agentic OS. Specifically mention how we handle {{ $json.miraee_value }} autonomously (e.g., AI auto-rebooking during disruptions).\n4. **Soft CTA**: Suggest a 10-minute look at the Miraee Hub. Avoid 'hard' sales closes.\n\nRules:\n- Tone: Professional but human (avoid marketing jargon).\n- Length: Keep it under 150 words.\n- DO NOT use placeholders. Use: {{ $json.name }}.\n- Return ONLY JSON with 'subject' and 'email_body'."
             }
           ]
         },
@@ -446,8 +446,12 @@
               "value": "={{$json[\"content\"]}}"
             },
             {
-              "name": "api_key",
-              "value": "f4a2839649f361bbd96ed269807d874ff19fa7c334129e6081f622f119c131dd"
+              "name": "api-key",
+              "value": "f07d353ac184511449c8a3409b782aa2d16d9ff7"
+            },
+            {
+              "name": "num",
+              "value": "20"
             },
             {
               "name": "Location",
@@ -485,19 +489,9 @@
                 "operation": "empty",
                 "singleValue": true
               }
-            },
-            {
-              "id": "c5891f05-74ac-4184-bb65-11ad01bfecb0",
-              "leftValue": "={{ $json.email_body }}",
-              "rightValue": "",
-              "operator": {
-                "type": "array",
-                "operation": "empty",
-                "singleValue": true
-              }
             }
           ],
-          "combinator": "and"
+          "combinator": "or"
         },
         "options": {}
       },
@@ -572,6 +566,17 @@
       ],
       "id": "7b1a64bf-7eae-45e3-9742-9bacc5d9c8cb",
       "name": "Respond with Drafts"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        768,
+        752
+      ],
+      "id": "4013a022-505b-444c-a3ee-bb6568e3ef08",
+      "name": "When clicking ‘Execute workflow’"
     }
   ],
   "pinData": {},
@@ -779,6 +784,17 @@
           }
         ]
       ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": true,
@@ -787,7 +803,7 @@
     "binaryMode": "separate",
     "availableInMCP": false
   },
-  "versionId": "79b06a18-7cac-4cd3-9a24-27928f30c880",
+  "versionId": "d625727a-a2d3-41e4-b6f9-1fc88eb0f312",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "48873ca0faf2834fcac348c85b5cfe8a77d198239fa094d25a95512e1a2e676b"

@@ -1,26 +1,33 @@
 import React, { useState, useEffect } from 'react';
-import { UserPlus, MessageSquare, CheckCircle, Loader2, Users, Search, Filter, Share2, Zap } from 'lucide-react';
+import { UserPlus, MessageSquare, CheckCircle, Loader2, Users, Search, RefreshCw, Share2, Zap, Target, Navigation, ArrowUpRight, ShieldCheck } from 'lucide-react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import { motion, AnimatePresence } from 'framer-motion';
 import { N8N_CONFIG, UNIPILE_CONFIG } from '../config';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/Card';
+import { Button } from './ui/Button';
+import { Badge } from './ui/Badge';
+import { cn } from '../lib/utils';
+import EmptyState from './EmptyState';
+import { useProcessTracking } from '../hooks/useProcessTracking';
 
 const CloserAgent = () => {
     const [leads, setLeads] = useState([]);
     const [loading, setLoading] = useState(false);
+    const { startProcess, completeProcess, failProcess, modalProps } = useProcessTracking();
     const [searchTerm, setSearchTerm] = useState('');
     const [sendingId, setSendingId] = useState(null);
-    const [status, setStatus] = useState({}); // {leadId: 'success' | 'error' | 'loading'}
-    const [unipileStatus, setUnipileStatus] = useState({}); // {leadId: 'success' | 'error' | 'loading'}
+    const [status, setStatus] = useState({});
+    const [unipileStatus, setUnipileStatus] = useState({});
 
     const fetchLeads = async () => {
         setLoading(true);
-        const toastId = toast.loading('Syncing Closer Database...');
+        const toastId = toast.loading('Syncing target connections...');
         try {
             const response = await axios.get(N8N_CONFIG.FETCHER_WEBHOOK);
             const fetchedLeads = Array.isArray(response.data) ? response.data : [];
             setLeads(fetchedLeads);
             
-            // Sync status state with what's already in the sheet
             const initialStatus = {};
             fetchedLeads.forEach((lead, idx) => {
                 const sheetStatus = lead.Status || lead.status || lead['Connection request'] || '';
@@ -29,10 +36,9 @@ const CloserAgent = () => {
                 }
             });
             setStatus(initialStatus);
-            toast.success(`Synced ${fetchedLeads.length} leads.`, { id: toastId });
+            toast.success(`Database sync complete.`, { id: toastId });
         } catch (error) {
-            console.error("Failed to fetch leads", error);
-            toast.error("Failed to sync database.", { id: toastId });
+            toast.error("Database connection timeout.", { id: toastId });
         } finally {
             setLoading(false);
         }
@@ -45,7 +51,7 @@ const CloserAgent = () => {
     const sendInvite = async (lead, index) => {
         setSendingId(index);
         setStatus(prev => ({ ...prev, [index]: 'loading' }));
-        const toastId = toast.loading(`Dispatching Agent for ${lead.name || lead.Name}...`);
+        startProcess("Dispatching Agent", `Deploying cognitive outreach operative to engage with ${lead.name || lead.Name}. Initializing AI shadowing and identity mirroring protocols...`);
 
         try {
             const response = await fetch(N8N_CONFIG.CLOSER_WEBHOOK, {
@@ -57,21 +63,21 @@ const CloserAgent = () => {
                     lead_linkedin: lead.linkedin || lead.LinkedIn_URL,
                     row_number: lead.row_number || lead.Row_Number || lead.row_index, 
                     topic_title: "LinkedIn Networking",
-                    research_content: "Direct outreach from Miraee Closer Agent."
+                    research_content: "Professional outreach via AI Mirroring."
                 }),
             });
 
             if (response.ok) {
                 setStatus(prev => ({ ...prev, [index]: 'success' }));
-                toast.success(`Invitation successfully sent to ${lead.company || lead.Company}!`, { id: toastId });
+                completeProcess();
             } else {
                 setStatus(prev => ({ ...prev, [index]: 'error' }));
-                toast.error(`Agent failed for ${lead.name || lead.Name}.`, { id: toastId });
+                const errData = await response.json().catch(() => ({}));
+                failProcess(errData.message || "The invitation node encountered a structural failure in the n8n cluster.");
             }
         } catch (error) {
-            console.error('Closer Agent Error:', error);
             setStatus(prev => ({ ...prev, [index]: 'error' }));
-            toast.error('Network Error during dispatch.', { id: toastId });
+            failProcess(error);
         } finally {
             setSendingId(null);
         }
@@ -80,17 +86,15 @@ const CloserAgent = () => {
     const sendUnipileInvite = async (lead, index) => {
         const linkedinUrl = lead.linkedin || lead.LinkedIn_URL;
         if (!linkedinUrl) {
-            toast.error("LinkedIn URL missing for this lead!");
+            toast.error("LinkedIn Identifier Missing.");
             return;
         }
 
         setSendingId(index);
         setUnipileStatus(prev => ({ ...prev, [index]: 'loading' }));
-        const toastId = toast.loading(`Unipile: Connecting to ${lead.name || lead.Name}...`);
+        startProcess("Unipile Resolution", `Resolving LinkedIn identifier for ${lead.name || lead.Name} via Unipile secure bridge. Synchronizing session tokens and resolving provider IDs...`);
 
         try {
-            // STEP 1: Resolve Profile to get Provider ID
-            // Handle variations: /in/name, /in/name/, /in/name?param, or just the handle
             let publicId = linkedinUrl;
             if (linkedinUrl.includes('/in/')) {
                 publicId = linkedinUrl.split('/in/')[1].split('/')[0].split('?')[0].replace('/', '');
@@ -98,7 +102,7 @@ const CloserAgent = () => {
                 publicId = linkedinUrl.split('.com/')[1].split('/')[0].split('?')[0].replace('/', '');
             }
 
-            if (!publicId) throw new Error("Could not parse LinkedIn profile handle");
+            if (!publicId) throw new Error("Identifier Resolution Failed: LinkedIn URL may be malformed.");
 
             const resolveRes = await axios.get(`${UNIPILE_CONFIG.BASE_URL}/users/${publicId}`, {
                 params: { account_id: UNIPILE_CONFIG.ACCOUNT_ID },
@@ -106,14 +110,11 @@ const CloserAgent = () => {
             });
 
             const providerId = resolveRes.data.provider_id;
-            if (!providerId) throw new Error("Could not find internal Provider ID");
+            if (!providerId) throw new Error("Provider Resolution Failed: Target profile is not reachable via the current Unipile account.");
 
-            // STEP 2: Send Invitation with Message (Strict 150 Chars)
             const firstName = (lead.name || lead.Name || "there").split(' ')[0];
             const company = (lead.company || lead.Company || "your team").substring(0, 30);
-            const inviteMsg = `Hi ${firstName}, saw your work at ${company}. I'm from Miraee (Agentic OS)—we automate corporate travel & expenses via AI. Love to connect!`;
-            
-            // Hard safety truncation at 148 chars
+            const inviteMsg = `Hi ${firstName}, noticed your growth at ${company}. Reaching out from Miraee (Agentic OS)—we develop AI for corporate travel & expense automation. Would love to connect!`;
             const finalMsg = inviteMsg.length > 148 ? inviteMsg.substring(0, 145) + "..." : inviteMsg;
 
             const inviteRes = await axios.post(`${UNIPILE_CONFIG.BASE_URL}/users/invite`, {
@@ -126,9 +127,7 @@ const CloserAgent = () => {
 
             if (inviteRes.status === 201 || inviteRes.status === 200) {
                 setUnipileStatus(prev => ({ ...prev, [index]: 'success' }));
-                toast.success(`Unipile: Connection request sent!`, { id: toastId });
-
-                // PERSIST TO SHEET: Tell n8n to mark this lead as "Sent (Unipile)" 
+                
                 try {
                     await axios.post(N8N_CONFIG.CLOSER_WEBHOOK, {
                         row_number: lead.row_number || lead.Row_Number || lead.row_index,
@@ -136,22 +135,17 @@ const CloserAgent = () => {
                         lead_name: lead.name || lead.Name,
                         update_only: true 
                     });
-                    // Move to "Sent" section in UI
                     setStatus(prev => ({ ...prev, [index]: 'success' }));
-                } catch (sheetError) {
-                    console.error("Failed to update sheet status", sheetError);
-                }
+                } catch (e) {}
+                
+                completeProcess();
             } else {
-                throw new Error("Unipile API returned an error");
+                throw new Error("The Unipile dispatch node returned an abnormal status. Connection request may not have been finalized.");
             }
-
         } catch (error) {
-            console.error('Unipile Error Detail:', error.response?.data);
             setUnipileStatus(prev => ({ ...prev, [index]: 'error' }));
-            
-            // Get the specific error from Unipile (e.g. "Invite already sent")
-            const errorTitle = error.response?.data?.title || error.response?.data?.message || error.message || 'Unipile Error';
-            toast.error(`Unipile: ${errorTitle}`, { id: toastId });
+            const errorTitle = error.response?.data?.title || error.message || 'Direct Send Failed';
+            toast.error(errorTitle, { id: toastId });
         } finally {
             setSendingId(null);
         }
@@ -163,138 +157,194 @@ const CloserAgent = () => {
         return name.includes(searchTerm.toLowerCase()) || company.includes(searchTerm.toLowerCase());
     });
 
+    const activeLeads = filteredLeads.filter(l => {
+        const originalIdx = leads.indexOf(l);
+        return !(status[originalIdx] === 'success' || unipileStatus[originalIdx] === 'success');
+    });
+
+    const sentLeads = filteredLeads.filter(l => {
+        const originalIdx = leads.indexOf(l);
+        return status[originalIdx] === 'success' || unipileStatus[originalIdx] === 'success';
+    });
+
     return (
-        <div className="view-container" style={{ padding: '40px', maxWidth: '1200px', margin: '0 auto' }}>
-            <header style={{ marginBottom: '40px' }}>
-                <h1 style={{ fontSize: '42px', fontWeight: 800, color: 'var(--primary)', marginBottom: '16px' }}>
-                    Closer <span style={{ color: 'var(--accent)' }}>Agent</span>
+        <div className="space-y-10">
+            <header className="flex flex-col gap-1">
+                <div className="flex items-center gap-2 mb-2">
+                    <Badge variant="outline" className="text-[10px] py-1 uppercase font-semibold text-slate-400 border-slate-200">OUTREACH TERMINAL</Badge>
+                    <span className="text-slate-200">|</span>
+                    <span className="text-[10px] text-slate-400 font-medium uppercase tracking-widest">Lead Conversion</span>
+                </div>
+                <h1 className="text-3xl font-bold tracking-tight text-slate-900 leading-none">
+                    Closer <span className="text-primary/70 font-medium">Agent</span>
                 </h1>
-                <p className="subtitle" style={{ fontSize: '18px', maxWidth: '700px' }}>
-                    The ultimate command center for LinkedIn outreach. Convert your sourced leads into connections with AI-powered, single-click invitations.
+                <p className="text-base text-slate-500 max-w-2xl font-normal leading-relaxed">
+                    Personalized LinkedIn engagement module. Convert high-intent leads into direct connections with AI-assisted dispatches.
                 </p>
             </header>
 
-            <div className="card" style={{ marginBottom: '32px', display: 'flex', alignItems: 'center', gap: '16px', padding: '16px 24px' }}>
-                <Search size={20} color="var(--n400)" />
-                <input 
-                    type="text" 
-                    placeholder="Search leads by name or company..." 
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    style={{ background: 'transparent', border: 'none', padding: 0, fontSize: '16px', flex: 1, boxShadow: 'none' }}
-                />
-                <button onClick={fetchLeads} className="btn-secondary" style={{ padding: '8px 16px', fontSize: '13px' }}>
-                    {loading ? <Loader2 className="animate-spin" size={14} /> : 'Refresh Leads'}
-                </button>
+            <div className="flex flex-col md:flex-row gap-6 items-center">
+                <Card className="flex-1 w-full bg-white border-slate-100 shadow-sm rounded-2xl overflow-hidden">
+                    <div className="flex items-center gap-4 px-6 py-4 h-14">
+                        <Search className="text-slate-300" size={18} />
+                        <input 
+                            type="text" 
+                            placeholder="Filter candidates by name or organization..." 
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="bg-transparent border-none p-0 text-sm font-semibold text-slate-900 flex-1 focus:ring-0 placeholder:text-slate-300"
+                        />
+                        <div className="w-px h-6 bg-slate-100 mx-1" />
+                        <Button variant="ghost" size="sm" onClick={fetchLeads} className="font-semibold tracking-wider text-[10px] uppercase gap-2 hover:bg-slate-50">
+                            {loading ? <Loader2 className="animate-spin text-primary" size={14} /> : <RefreshCw size={12} />}
+                            Sync DB
+                        </Button>
+                    </div>
+                </Card>
             </div>
 
-            {loading && leads.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '60px' }}>
-                    <Loader2 className="animate-spin" size={48} color="var(--accent)" />
-                    <p style={{ marginTop: '16px', color: 'var(--n500)' }}>Scanning Lead Database...</p>
-                </div>
-            ) : filteredLeads.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '60px', background: 'var(--n10)', borderRadius: '12px', border: '2px dashed var(--n30)' }}>
-                    <Users size={48} color="var(--n300)" style={{ marginBottom: '16px' }} />
-                    <h3 style={{ color: 'var(--n600)' }}>No leads found.</h3>
-                    <p style={{ color: 'var(--n500)' }}>Try adjusting your search or source more leads first.</p>
-                </div>
-            ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '48px' }}>
-                    {/* Active Leads Section */}
-                    <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '24px' }}>
-                            <UserPlus size={20} color="var(--primary)" />
-                            <h2 style={{ fontSize: '24px', fontWeight: 700 }}>Ready to Close</h2>
-                        </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '24px' }}>
-                            {filteredLeads.filter(l => {
-                                const originalIdx = leads.indexOf(l);
-                                const isSent = status[originalIdx] === 'success' || unipileStatus[originalIdx] === 'success';
-                                return !isSent;
-                            }).map((lead, idx) => {
-                                const originalIdx = leads.indexOf(lead);
-                                const isLoading = status[originalIdx] === 'loading' || unipileStatus[originalIdx] === 'loading';
-                                return (
-                                    <div key={originalIdx} className="card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                                        <div>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-                                                <div style={{ width: '48px', height: '48px', background: 'var(--bg-creme)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)', fontWeight: 800, fontSize: '20px' }}>
-                                                    {(lead.name || lead.Name || '?')[0]}
-                                                </div>
-                                                <div className="status-badge status-neutral">Ready</div>
-                                            </div>
-                                            <h3 style={{ fontSize: '20px', marginBottom: '4px' }}>{lead.name || lead.Name}</h3>
-                                            <p style={{ color: 'var(--n500)', fontSize: '14px', marginBottom: '16px' }}>
-                                                {lead.title || lead.Title || 'Professional'} at <span style={{ fontWeight: 700, color: 'var(--primary)' }}>{lead.company || lead.Company}</span>
-                                            </p>
-                                        </div>
-                                        <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
-                                            <button 
-                                                onClick={() => sendInvite(lead, originalIdx)}
-                                                disabled={sendingId !== null}
-                                                className="btn-secondary"
-                                                style={{ flex: 1, fontSize: '12px', padding: '10px' }}
-                                            >
-                                                {status[originalIdx] === 'loading' ? <Loader2 className="animate-spin" size={14} /> : <Zap size={14} />}
-                                                <span>n8n Queue</span>
-                                            </button>
-                                            
-                                            <button 
-                                                onClick={() => sendUnipileInvite(lead, originalIdx)}
-                                                disabled={sendingId !== null}
-                                                style={{ 
-                                                    flex: 1, 
-                                                    fontSize: '12px', 
-                                                    padding: '10px',
-                                                    background: 'var(--primary)',
-                                                    color: 'white'
-                                                }}
-                                            >
-                                                {unipileStatus[originalIdx] === 'loading' ? (
-                                                    <Loader2 className="animate-spin" size={14} />
-                                                ) : (
-                                                    <Share2 size={14} />
-                                                )}
-                                                <span>Unipile Direct</span>
-                                            </button>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-
-                    {/* Invitations Sent Section */}
-                    {Object.values(status).includes('success') && (
-                        <div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '24px' }}>
-                                <CheckCircle size={20} color="var(--success-text)" />
-                                <h2 style={{ fontSize: '24px', fontWeight: 700 }}>Invitations Sent</h2>
+            <AnimatePresence mode="popLayout">
+                {loading && leads.length === 0 ? (
+                    <motion.div 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="flex flex-col items-center justify-center py-40 space-y-6"
+                    >
+                        <Loader2 className="animate-spin text-primary/50" size={48} />
+                        <p className="text-primary font-semibold tracking-widest text-[10px] uppercase animate-pulse">Initializing Connectivity Swarm...</p>
+                    </motion.div>
+                ) : filteredLeads.length === 0 ? (
+                    <motion.div 
+                        initial={{ opacity: 0, scale: 0.98 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="py-40 border border-slate-100 bg-white rounded-3xl flex flex-col items-center justify-center text-center px-10 shadow-sm"
+                    >
+                        <Users size={48} className="text-slate-200 mb-6" />
+                        <h3 className="text-xl font-bold text-slate-300 tracking-tight uppercase">No Match Found</h3>
+                        <p className="text-slate-300 font-semibold mt-1 uppercase tracking-widest text-[10px]">Adjust search filters or run a discovery scan.</p>
+                    </motion.div>
+                ) : (
+                    <div className="space-y-12 pb-20">
+                        {/* Ready Section */}
+                        <div className="space-y-8">
+                            <div className="flex items-center justify-between px-2">
+                                <div className="space-y-1">
+                                    <h2 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-3">
+                                        <Target className="text-primary/50" size={24} />
+                                        Qualified Connections
+                                    </h2>
+                                    <p className="text-sm font-normal text-slate-500">Total high-intent leads awaiting outreach: {activeLeads.length}</p>
+                                </div>
+                                <Badge variant="primary" className="bg-primary/5 text-primary border-primary/10 h-7 px-3 font-semibold text-[10px]">ACTIVE QUEUE</Badge>
                             </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '24px', opacity: 1 }}>
-                                {filteredLeads.filter(l => {
-                                    const originalIdx = leads.indexOf(l);
-                                    return status[originalIdx] === 'success' || unipileStatus[originalIdx] === 'success';
-                                }).map((lead, idx) => {
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+                                {activeLeads.map((lead) => {
                                     const originalIdx = leads.indexOf(lead);
                                     return (
-                                        <div key={originalIdx} className="card" style={{ border: '1px solid var(--success-bg)', background: 'var(--success-bg-light)' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                <div>
-                                                    <h3 style={{ fontSize: '18px', marginBottom: '4px' }}>{lead.name || lead.Name}</h3>
-                                                    <p style={{ color: 'var(--n500)', fontSize: '13px' }}>{lead.company || lead.Company}</p>
-                                                </div>
-                                                <div className="status-badge status-success">Sent</div>
-                                            </div>
-                                        </div>
+                                        <motion.div
+                                            key={originalIdx}
+                                            layout
+                                            initial={{ opacity: 0, scale: 0.98 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.98 }}
+                                        >
+                                            <Card className="group hover:shadow-md hover:border-primary/10 transition-all duration-300 overflow-hidden flex flex-col h-full bg-white border-slate-100">
+                                                <CardContent className="p-8 relative flex-grow space-y-6">
+                                                    <div className="flex justify-between items-start">
+                                                        <div className="w-12 h-12 bg-primary rounded-xl flex items-center justify-center text-white font-bold text-xl group-hover:scale-105 transition-transform">
+                                                            {(lead.name || lead.Name || '?')[0]}
+                                                        </div>
+                                                        <div className="flex flex-col items-end gap-2">
+                                                            <Badge variant="outline" className="border-emerald-200 text-emerald-600 bg-emerald-50 text-[9px] font-semibold">QUALIFIED</Badge>
+                                                            {lead.LinkedIn_URL && (
+                                                                <a 
+                                                                    href={lead.LinkedIn_URL} 
+                                                                    target="_blank" 
+                                                                    rel="noopener noreferrer" 
+                                                                    className="text-slate-300 hover:text-primary transition-colors"
+                                                                >
+                                                                    <ArrowUpRight size={16} />
+                                                                </a>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div className="space-y-1">
+                                                        <h3 className="text-xl font-bold text-slate-900 tracking-tight leading-tight group-hover:text-primary transition-colors">{lead.name || lead.Name}</h3>
+                                                        <p className="text-sm font-normal text-slate-500 leading-relaxed">
+                                                            {lead.title || lead.Title || 'Founder'} at <span className="text-slate-900 font-semibold">{lead.company || lead.Company}</span>
+                                                        </p>
+                                                    </div>
+                                                </CardContent>
+                                                
+                                                <CardContent className="p-8 pt-4 border-t border-slate-50 bg-slate-50/20 flex flex-col sm:flex-row gap-3">
+                                                    <Button 
+                                                        variant="outline"
+                                                        size="lg"
+                                                        onClick={() => sendInvite(lead, originalIdx)}
+                                                        disabled={sendingId !== null}
+                                                        className="flex-1 h-12 border-slate-200 font-semibold tracking-wide text-[9px] uppercase whitespace-nowrap"
+                                                    >
+                                                        {status[originalIdx] === 'loading' ? <Loader2 className="animate-spin text-primary" size={14} /> : <Zap size={14} className="mr-2 text-primary" />}
+                                                        Send (N8N)
+                                                    </Button>
+                                                    
+                                                    <Button 
+                                                        variant="primary"
+                                                        size="lg"
+                                                        onClick={() => sendUnipileInvite(lead, originalIdx)}
+                                                        disabled={sendingId !== null}
+                                                        className="flex-1 h-12 font-semibold tracking-wide text-[9px] uppercase whitespace-nowrap shadow-primary/10"
+                                                    >
+                                                        {unipileStatus[originalIdx] === 'loading' ? (
+                                                            <Loader2 className="animate-spin" size={14} />
+                                                        ) : (
+                                                            <Share2 size={14} className="mr-2 text-accent" />
+                                                        )}
+                                                        Send (Unipile)
+                                                    </Button>
+                                                </CardContent>
+                                            </Card>
+                                        </motion.div>
                                     );
                                 })}
                             </div>
                         </div>
-                    )}
-                </div>
-            )}
+
+                        {/* Sent Section */}
+                        {sentLeads.length > 0 && (
+                            <div className="space-y-8 pt-6 border-t border-slate-100">
+                                <div className="flex items-center gap-3 px-2">
+                                    <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-500 border border-emerald-100">
+                                        <ShieldCheck size={18} />
+                                    </div>
+                                    <h2 className="text-xl font-bold tracking-tight text-slate-900 flex items-center gap-3">
+                                      Dispatched Connections 
+                                      <Badge variant="success" className="bg-emerald-100 text-emerald-700 border-none px-3 py-1 font-semibold text-[10px]">{sentLeads.length}</Badge>
+                                    </h2>
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                                    {sentLeads.map((lead) => (
+                                        <Card key={leads.indexOf(lead)} className="bg-white border-slate-100 shadow-sm opacity-60">
+                                            <CardContent className="p-5 flex items-center justify-between">
+                                                <div className="space-y-0.5 truncate pr-4">
+                                                    <h3 className="text-sm font-semibold text-slate-900 leading-tight truncate">{lead.name || lead.Name}</h3>
+                                                    <p className="text-[10px] font-medium text-slate-400 uppercase tracking-widest truncate">{lead.company || lead.Company}</p>
+                                                </div>
+                                                <div className="p-1.5 bg-emerald-50 text-emerald-500 rounded-lg flex-shrink-0">
+                                                    <CheckCircle size={14} />
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };

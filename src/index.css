@@ -1,364 +1,117 @@
-/* index.css */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
+@import "tailwindcss";
+@plugin "tailwindcss-animate";
 
-:root {
-  /* Mondee Official Colors */
-  --primary: #4F001D; 
-  --primary-hover: #380015;
-  --accent: #FA4D33;
-  --accent-hover: #e0442c;
+@theme {
+  --font-sans: "Outfit", "Inter", ui-sans-serif, system-ui, sans-serif;
   
-  /* Backgrounds */
-  --bg-creme: #F9F4F0;
-  --n0: #FFFFFF;
-  --n10: #F7F8F9;
-  --n20: #F4F5F7;
-  --n30: #EBECF0;
-  --n40: #DFE1E6;
-  --n100: #7A869A;
-  --n500: #42526E;
-  --n800: #172B4D;
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
   
-  /* Semantic Colors */
-  --success-bg: #E3FCEF;
-  --success-text: #006644;
-  --warning-bg: #FFFAE6;
-  --warning-text: #FF8B00;
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
   
-  /* Typography */
-  --font-main: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-display: 'Plus Jakarta Sans', sans-serif;
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
   
-  /* Shadows & Depth */
-  --shadow-raised: 0 4px 12px -2px rgba(9, 30, 66, 0.15), 0 0 1px rgba(9, 30, 66, 0.31);
-  --radius: 12px;
-  --sidebar-width: 280px;
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
 
-  /* Premium Transitions */
-  --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  
-  /* Responsive Spacing */
-  --page-px: 80px;
-  --page-py: 64px;
-}
+  --radius-lg: 1.25rem;
+  --radius-md: 1rem;
+  --radius-sm: 0.75rem;
 
-@media (max-width: 1200px) {
-  :root {
-    --page-px: 40px;
-    --sidebar-width: 240px;
+  --animate-accordion-down: accordion-down 0.2s ease-out;
+  --animate-accordion-up: accordion-up 0.2s ease-out;
+
+  @keyframes accordion-down {
+    from { height: 0; }
+    to { height: var(--radix-accordion-content-height); }
+  }
+  @keyframes accordion-up {
+    from { height: var(--radix-accordion-content-height); }
+    to { height: 0; }
   }
 }
 
-@media (max-width: 768px) {
+@layer base {
   :root {
-    --page-px: 24px;
-    --page-py: 32px;
-    --sidebar-width: 100%;
+    --background: 0 0% 100%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    
+    /* Mondee Maroon */
+    --primary: 341 100% 15%; 
+    --primary-foreground: 0 0% 98%;
+    
+    /* Mondee Orange */
+    --accent: 7 96% 59%;
+    --accent-foreground: 0 0% 98%;
+
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222 47% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 341 100% 15%;
+    --radius: 1.25rem;
   }
 }
 
-/* Custom Premium Scrollbar */
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-[#f8fafc] text-slate-900 font-sans antialiased;
+  }
+}
+
+/* Stable Layout Utilities */
+.sidebar-stable {
+  @apply h-screen bg-[#4F001D] text-white transition-all duration-300 ease-in-out border-r border-white/5 flex-shrink-0;
+}
+
+.content-breathable {
+  @apply transition-all duration-300 ease-in-out bg-[#f8fafc];
+}
+
+/* Custom Scrollbar (Professional Zinc) */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--n10);
+  @apply bg-transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--n40);
-  border-radius: 10px;
+  @apply bg-slate-200 rounded-full hover:bg-slate-300 transition-colors;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: var(--n100);
-}
-
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
-body {
-  margin: 0;
-  font-family: var(--font-main);
-  background-color: var(--n10);
-  color: var(--n800);
-  line-height: 1.5;
-  -webkit-font-smoothing: antialiased;
-}
-
-.app-container {
-  display: flex;
-  min-height: 100vh;
-}
-
-.sidebar {
-  width: var(--sidebar-width);
-  background-color: var(--primary);
-  color: white;
-  display: flex;
-  flex-direction: column;
-  position: fixed;
-  height: 100vh;
-  z-index: 1000; /* Increased for mobile layering */
-  transition: var(--transition);
-  left: 0;
-  top: 0;
-}
-
-.logo-container {
-  padding: 40px 24px;
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-}
-
-.logo {
-  height: 32px;
-  width: auto;
-  /* Logo remains in brand colors on maroon background usually looks good, 
-     if it was inverted before, we can keep it white or set to normal. 
-     User said previous one was super, so I'll keep it white if it was white then. */
-  filter: brightness(0) invert(1);
-}
-
-.nav-links {
-  padding: 24px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.nav-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 16px;
-  text-decoration: none;
-  color: var(--n30);
-  border-radius: 4px;
-  transition: all 0.2s;
-  cursor: pointer;
-  font-weight: 500;
-  font-size: 14px;
-}
-
-.nav-item:hover {
-  background-color: rgba(255,255,255,0.08);
-  color: white;
-}
-
-.nav-item.active {
-  background-color: var(--accent);
-  color: white;
-  font-weight: 600;
-}
-
-.main-content {
-  flex: 1;
-  margin-left: var(--sidebar-width);
-  background-color: var(--n10);
-  min-height: 1000px; /* Ensure content is long enough */
-  transition: var(--transition);
-}
-
-@media (max-width: 768px) {
-  .sidebar {
-    transform: translateX(-100%);
-    width: 280px !important;
-  }
-  .sidebar.open {
-    transform: translateX(0);
-  }
-  .main-content {
-    margin-left: 0;
-    padding-top: 60px; /* Space for mobile header */
-  }
-}
-
-.page-container {
-  padding: var(--page-py) var(--page-px);
-  max-width: 1400px;
-  margin: 0 auto;
-}
-
-.page-header {
-  margin-bottom: 48px;
-}
-
-h1, h2, h3, h4 {
-  font-family: var(--font-display);
-  color: var(--n800);
-  margin: 0;
-  font-weight: 700;
-}
-
-h1 {
-  font-size: 36px;
-  letter-spacing: -0.02em;
-  margin-bottom: 12px;
-}
-
-.card {
-  background: white;
-  border-radius: var(--radius);
-  border: 1px solid var(--n30);
-  padding: 32px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-  margin-bottom: 32px;
-  transition: var(--transition);
-  animation: fadeIn 0.5s ease-out;
-}
-
-.card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 40px rgba(0,0,0,0.04);
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-input, select, textarea {
-  width: 100%;
-  padding: 10px 14px;
-  border: 2px solid var(--n40);
-  border-radius: 4px;
-  font-size: 14px;
-  background: var(--n10);
-  font-family: var(--font-main);
-  transition: all 0.2s;
-}
-
-input:focus, select:focus, textarea:focus {
-  outline: none;
-  background: white;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(255, 107, 82, 0.2);
-}
-
-button {
-  background-color: var(--accent);
-  color: white;
-  border: none;
-  padding: 12px 28px;
-  border-radius: 50px;
-  font-weight: 700;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-button:hover {
-  background-color: var(--accent-hover);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(250, 77, 51, 0.3);
-}
-
-button.btn-secondary {
-  background-color: var(--n30);
-  border: none;
-  color: var(--n800);
-}
-
-button.btn-secondary:hover {
-  background-color: var(--n40);
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 16px;
-}
-
-th {
-  text-align: left;
-  padding: 12px 16px;
-  border-bottom: 2px solid var(--n40);
-  color: var(--n100);
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  background-color: var(--n10);
-}
-
-td {
-  padding: 16px;
-  border-bottom: 1px solid var(--n30);
-  font-size: 14px;
-  color: var(--n800);
-  vertical-align: middle;
-}
-
-tr:hover td {
-  background-color: var(--n10);
-}
-
-.subtitle {
-  color: var(--n100);
-  font-size: 16px;
-  margin-top: 4px;
-}
-
-/* Status Badges */
-.status-badge {
-  padding: 4px 12px;
-  border-radius: 12px;
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  display: inline-flex;
-  align-items: center;
-}
-
-.status-success {
-  background-color: var(--success-bg);
-  color: var(--success-text);
-}
-
-.status-warning {
-  background-color: var(--warning-bg);
-  color: var(--warning-text);
-}
-
-.status-neutral {
-  background-color: var(--n30);
-  color: var(--n500);
-}
-
-.animate-spin {
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-/* Dashboard Specifics */
-.view-container {
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-.card-title {
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--n800);
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
+@custom-variant hover (&:hover);
+@custom-variant active (&:active);
+@custom-variant focus (&:focus);
+@custom-variant disabled (&:disabled);

@@ -1,0 +1,1168 @@
+{
+  "name": "lead generator using jina copy",
+  "nodes": [
+    {
+      "parameters": {
+        "url": "=https://r.jina.ai/{{ $json.url || $json.link }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "4ff932a2-c2fc-4d52-8fa2-777fb469e416",
+      "name": "Jina AI Scraper (Free)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        864,
+        736
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $json.body || $json;\n\n// Case 0: Direct URL for Scraping (Bypasses Search)\nif (body.url || body.link || body.scrape_url) {\n  return [{ \n    json: { \n      url: body.url || body.link || body.scrape_url, \n      is_direct_url: true \n    } \n  }];\n}\n\n// Case 1: Direct Array of Company Objects\nif (Array.isArray(body) && body.length > 0 && body[0].company) {\n  return body.map(item => ({\n    json: { \n      company: item.company, \n      website: item.website || \"N/A\",\n      is_direct: true \n    } \n  }));\n}\n\n// Case 2: Batch queries (supports 'search_queries' or 'queries' keys from Webhook)\nconst queries = body.search_queries || body.queries;\n\nif (Array.isArray(queries)) {\n  return queries.map(q => ({\n    json: { \n      Query: q, \n      Signal: body.search_parameters?.location || \"\", \n      Filter: `${body.search_parameters?.industry || \"\"} ${body.search_parameters?.company_scale || \"\"}`.trim()\n    } \n  }));\n}\n\n// Case 3: Google Sheets / Manual Trigger Support\nreturn [{ json: { \n  Query: body.Query || body[\"Target Industry / Query\"] || body.industry || body.query || body.search_query || \"\", \n  Signal: body.Signal || body.signal || \"\", \n  Filter: body.Filter || body.filter || body.filters || \"\" \n} }];\n"
+      },
+      "id": "fafab64b-eab0-4651-ae6b-7365856b676e",
+      "name": "Unified Input Logic1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1056,
+        736
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "let q = ($json.Query || \"\").trim();\nlet f = ($json.Filter || \"\").trim();\nlet s = ($json.Signal || \"\").trim();\n// Fallback if everything is empty to prevent AI errors\nlet final = `${q} ${s} ${f}`.trim() || \"Trending SaaS companies\";\nreturn { ...$json, final_query: final };"
+      },
+      "id": "325da8e1-460e-4ca8-ad82-379582c18f22",
+      "name": "Query Refiner1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -832,
+        736
+      ]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gemini-3-flash-preview",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=\"Act as a Proper SERP Query Generator analyse the {{ $json.final_query }} and generate a propery search query as multiple to search in google to find company names return as only validjson do not include code markdowns or instructions\n\nAvoid generating queries which relates to linkedin\n\nEverything should be Recent on this Current year 2026"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "2c6e3710-30e7-4f63-8fa4-96e0d014847b",
+      "name": "Query Architect (AI)1",
+      "type": "@n8n/n8n-nodes-langchain.ollama",
+      "typeVersion": 1,
+      "position": [
+        -608,
+        752
+      ],
+      "credentials": {
+        "ollamaApi": {
+          "id": "FFPFwA8ZvFgxyIts",
+          "name": "Marketing"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// This node must come IMMEDIATELY AFTER your Query Architect (AI)\nlet raw = ($json.content || \"\").replace(/```json/g, \"\").replace(/```/g, \"\").trim();\n\ntry {\n  let data = JSON.parse(raw);\n  \n  // Support both 'search_queries' and 'queries' coming from the AI\n  let queries = data.search_queries || data.queries || (Array.isArray(data) ? data : []);\n  \n  if (queries.length === 0 && raw.length > 5) {\n      queries = [raw]; // Fallback to raw string if it's not a list\n  }\n\n  return queries.map(q => ({ json: { query: q } }));\n} catch (e) {\n  // If parsing fails, use the raw content as a single query\n  return [{ json: { query: $json.content } }];\n}\n"
+      },
+      "id": "d5e266ca-62ca-4edf-b0d9-1b36d7b7439a",
+      "name": "Query Parser1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -256,
+        736
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://google.serper.dev/search",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-KEY",
+              "value": "e62e6828cdb20926c1f270be6ea2cf97d1d3e97e"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"q\": $json.query || $(\"Query Refiner1\").item.json.final_query, \"num\": 10 } }}",
+        "options": {}
+      },
+      "id": "3d68f8ad-1859-48fe-aac5-a8d0b5d5de5d",
+      "name": "Serper Discovery1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -32,
+        736
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return ($json.organic || []).map(link => ({ json: link }));"
+      },
+      "id": "68ca3720-297c-4222-8a30-31e01b9df952",
+      "name": "Item Separator1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        192,
+        736
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "let raw = ($json.content || \"\").replace(/```json/g, \"\").replace(/```/g, \"\").trim();\ntry {\n  let data = JSON.parse(raw);\n  return (Array.isArray(data) ? data : []).map(item => ({\n    json: {\n      company: item.company,\n      website: item.website || \"N/A\",\n      category: item.category || \"N/A\"\n    }\n  }));\n} catch (e) {\n  return [];\n}"
+      },
+      "id": "5aa3dd7a-82f4-4ecc-b7a7-4eeceaf9406b",
+      "name": "AI Output Parser1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1792,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://google.serper.dev/search",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-KEY",
+              "value": "e62e6828cdb20926c1f270be6ea2cf97d1d3e97e"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"q\": $json.company + \" official website domain\", \"num\": 1 } }}",
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 5
+            }
+          },
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "442030be-8a3e-4b54-9ce3-89e3beaeb2e5",
+      "name": "Domain Recovery1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        2080,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// This version works with EXACTLY what I see on your screen:\nconst query = $json.searchParameters?.q || \"\";\nconst company = query.replace(\" official website domain\", \"\");\n\n// Look inside the 'organic' results for the domain\nconst link = $json.organic?.[0]?.link || \"\";\n\nconst domain = link\n  .replace(/^https?:\\/\\//, \"\")\n  .replace(/^www\\./, \"\")\n  .split(\"/\")[0]\n  .trim();\n\nreturn { \n  company: company || \"Unknown\", \n  website: domain || \"N/A\", \n  recovered: true \n};\n"
+      },
+      "id": "ac72ffca-4112-4764-a63e-c444de1cae16",
+      "name": "Domain Syncer1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2304,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all();"
+      },
+      "id": "7d5efc2d-52f1-4ac4-b39e-2f9b3b7277bb",
+      "name": "Union Results1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2528,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://google.serper.dev/search",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-KEY",
+              "value": "e62e6828cdb20926c1f270be6ea2cf97d1d3e97e"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"q\": \"site:linkedin.com/in \\\"\" + $json.company + \"\\\" (CEO OR Founder OR Owner OR Director)\", \"num\": 3 } }}",
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 5
+            }
+          },
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "a3d2954d-bcc3-47e0-ac42-923890d9a315",
+      "name": "Serper LinkedIn Search1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        2752,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// THIS VERSION USES A LOOKUP MAP FOR 100% ACCURACY\nlet allLeads = [];\nconst allIncomingItems = $input.all();\n\n// 1. CREATE THE LOOKUP TABLE from Union Results\nconst unionItems = $(\"Union Results1\").all();\nconst websiteMap = {};\n\nfor (const item of unionItems) {\n  if (item.json.company && item.json.website) {\n    // We store the company name as the \"Key\" and website as the \"Value\"\n    websiteMap[item.json.company] = item.json.website;\n  }\n}\n\n// 2. PROCESS THE LINKEDIN RESULTS\nfor (const item of allIncomingItems) {\n  const results = item.json.organic || [];\n  const searchQuery = item.json.searchParameters?.q || \"\";\n  \n  // Get the exact company name we searched for\n  const companyName = searchQuery.split('\"')[1] || \"Unknown Company\";\n\n  // --- THE SMART MATCH ---\n  // We look up the website in our map using the company name\n  const website = websiteMap[companyName] || \"N/A\";\n  // ------------------------\n\n  for (const r of results) {\n    const title = r.title || \"\";\n    const titleParts = title.split(/[-|]/);\n    let fullName = titleParts[0].trim();\n    let role = titleParts.slice(1).join(\"-\").trim() || \"Founder / Executive\";\n    const names = fullName.split(\" \");\n    \n    allLeads.push({\n      json: {\n        company: companyName,\n        website: website, // PROPERLY MATCHED WEBSITE!\n        full_name: fullName,\n        first_name: names[0] || \"\",\n        last_name: names.slice(1).join(\" \") || \"\",\n        role: role,\n        linkedin: r.link,\n        snippet: r.snippet\n      }\n    });\n  }\n}\n\nreturn allLeads;\n"
+      },
+      "id": "3eb4bf1e-a5c4-4a26-8598-8394b5f81fde",
+      "name": "Extract Name1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2976,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// STABLE FILTER - WORKS FOR ALL 102 ITEMS\nreturn $input.all().filter(item => {\n  // Only keep leads that have a valid last name\n  return item.json.last_name && item.json.last_name.length > 1;\n});\n"
+      },
+      "id": "7c40f306-bb82-4727-9bbb-697c19afc406",
+      "name": "Filter Names (Fixed)1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3200,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls",
+          "mode": "list",
+          "cachedResultName": "ICP",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1759447022,
+          "mode": "list",
+          "cachedResultName": "Verified Emails",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls/edit#gid=1759447022"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "name": "={{ $json.name }}",
+            "company": "={{ $json.company }}",
+            "email": "={{ $json.email }}",
+            "linkedin": "={{ $json.linkedin_url }}",
+            "company website": "={{ $json.website }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "date",
+              "displayName": "date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "company",
+              "displayName": "company",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "linkedin",
+              "displayName": "linkedin",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "company website",
+              "displayName": "company website",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "subject",
+              "displayName": "subject",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "email_body",
+              "displayName": "email_body",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "replied",
+              "displayName": "replied",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "drip status",
+              "displayName": "drip status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Connection note",
+              "displayName": "Connection note",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Connection request",
+              "displayName": "Connection request",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "6b30fcd2-ab19-4ce8-a629-1ce35bed14a9",
+      "name": "Google Sheets Output1",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        4800,
+        592
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "5UXIJ2FO1VLOtJZe",
+          "name": "Mondee"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "mail-input",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "c0a68924-400f-4631-9a4e-ef51fbb2e2c4",
+      "name": "Webhook1",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1280,
+        736
+      ],
+      "webhookId": "09334cd6-620c-40f2-a555-8ddc2666ccb7"
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "id": "19150139-8e35-425a-91da-b9a0781794cf",
+      "name": "Respond to Webhook1",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        4992,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "/* IDENTITY ROTATOR - Makes you look like a different person every time */\nconst agents = [\n  \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36\",\n  \"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36\",\n  \"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36\",\n  \"Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1\"\n];\n\n// Pick a random identity\nconst selected = agents[Math.floor(Math.random() * agents.length)];\n\nreturn {\n  ...$json,\n  ua: selected,\n  sec_ch_ua: '\"Google Chrome\";v=\"123\", \"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"123\"',\n  sec_ch_platform: selected.includes(\"iPhone\") ? '\"iOS\"' : '\"Windows\"'\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        416,
+        736
+      ],
+      "id": "d7302338-b5a9-4229-a89b-35d31429c0af",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "amount": 2
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        640,
+        736
+      ],
+      "id": "9bb6ba79-bf70-4840-8cd5-2f5b13428e72",
+      "name": "Wait1",
+      "webhookId": "5ee52a99-231f-414e-a1ec-5d2ee82c812a"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1504,
+        736
+      ],
+      "id": "5b5f8085-6bc1-4d6f-b391-1b5a3e89a60e",
+      "name": "Loop Over Items",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gemini-3-flash-preview",
+          "mode": "list",
+          "cachedResultName": "gemini-3-flash-preview"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=\"Extract ALL legitimate company names and their business domains/categories from the provided text or file. \\n\\nCRITICAL INSTRUCTIONS:\\n1. Extract EVERY SINGLE company listed. Do not summarize or skip any.\\n2. If the data is in a table, extract each row.\\n3. Format as a JSON array: [{\\\"company\\\": \\\"Name\\\", \\\"website\\\": \\\"domain.com (or N/A)\\\", \\\"category\\\": \\\"Business Domain/Details\\\"}].\\n4. Return ONLY the JSON array, no conversational text.\""
+            },
+            {
+              "content": "={{ $('Code in JavaScript').item.json.text }}"
+            }
+          ]
+        },
+        "options": {
+          "num_batch": 5
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.ollama",
+      "typeVersion": 1,
+      "position": [
+        1776,
+        752
+      ],
+      "id": "5619fae6-aa79-4401-bd36-5c7fb93ba8a1",
+      "name": "Message a model",
+      "alwaysOutputData": false,
+      "credentials": {
+        "ollamaApi": {
+          "id": "XGazPUgShUXWj32e",
+          "name": "SERPNEW"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1EysIxe5FxBZrm6eoQx-JkGEhKN4SixdAyEgQUS3XEkY",
+          "mode": "list",
+          "cachedResultName": "Sourced Profiles",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1EysIxe5FxBZrm6eoQx-JkGEhKN4SixdAyEgQUS3XEkY/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1EysIxe5FxBZrm6eoQx-JkGEhKN4SixdAyEgQUS3XEkY/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Company Name": "={{ $json.company }}",
+            "Name": "={{ $json.full_name }}",
+            "Website": "={{ $json.website }}",
+            "Linkedin Profile": "={{ $json.linkedin }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Company Name",
+              "displayName": "Company Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Website",
+              "displayName": "Website",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Linkedin Profile",
+              "displayName": "Linkedin Profile",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        3408,
+        352
+      ],
+      "id": "2653b77b-6c09-4172-b5fe-3b8360cc3e8e",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "RQHgqiU45PVMtr8V",
+          "name": "Mondee 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "let text = $json.data && $json.data.content ? $json.data.content : ($json.data || $json.content || \"\");\nif (typeof text !== \"string\") text = JSON.stringify(text);\n\n// 1. Remove Markdown Images: ![alt](url)\ntext = text.replace(/!\\[.*?\\]\\(.*?\\)/g, \"\");\n\n// 2. Remove Markdown Links but KEEP the text: [Click Here](https://...) -> Click Here\ntext = text.replace(/\\[([^\\]]+)\\]\\([^\\)]+\\)/g, \"$1\");\n\n// 3. Remove any residual HTML comments\ntext = text.replace(/<!--[\\s\\S]*?-->/g, \"\");\n\n// 4. Remove massive empty gaps (3+ blank lines become 1)\ntext = text.replace(/\\n\\s*\\n\\s*\\n/g, \"\\n\\n\");\n\n// Return the fully cleaned, full-length content!\nreturn { text: text.trim() };\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1280,
+        736
+      ],
+      "id": "1c603314-940f-4035-8952-cb43e42e0502",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "maxItems": 5
+      },
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        1072,
+        736
+      ],
+      "id": "76d3b00d-e317-47b7-81f8-2d1fc4be2a79",
+      "name": "Limit"
+    },
+    {
+      "parameters": {
+        "maxItems": 10
+      },
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        3440,
+        592
+      ],
+      "id": "72f03d19-6485-442a-9605-f560dfff05a5",
+      "name": "Limit1"
+    },
+    {
+      "parameters": {
+        "url": "https://api.getprospect.com/v2/email-verifier",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "email",
+              "value": "={{ $json.email }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Api-Key",
+              "value": "fa36c6d2-6abf-4afe-a2a8-2e4f32d983dc"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        4160,
+        592
+      ],
+      "id": "32b5b0e9-9514-4050-94f2-7ca0549bfd75",
+      "name": "HTTP Request1"
+    },
+    {
+      "parameters": {
+        "jsCode": "function normalize(text) {\n  return text.toLowerCase().replace(/[^a-z]/g, '');\n}\n\nconst results = [];\n\nfor (const item of items) {\n  const person = item.json;\n  const verifier = item.json.data;\n\n  if (!verifier || verifier.status !== \"valid\" || !verifier.email) continue;\n\n  const email = verifier.email.split(\"@\")[0]; // before @\n  const emailParts = email.split(/[.\\-_]/); // split by ., -, _\n\n  const first = normalize(person.first_name || '');\n  const last = normalize(person.last_name || '');\n  const full = normalize(person.full_name || '');\n\n  const emailJoined = normalize(emailParts.join(''));\n\n  let matchScore = 0;\n\n  // Matching logic\n  if (emailParts.includes(first)) matchScore += 2;\n  if (emailParts.includes(last)) matchScore += 2;\n\n  if (emailJoined.includes(first)) matchScore += 1;\n  if (emailJoined.includes(last)) matchScore += 1;\n\n  if (emailJoined.includes(full)) matchScore += 3;\n\n  // Only accept strong matches\n  if (matchScore >= 3) {\n    results.push({\n      name: person.full_name,\n      company: person.company,\n      role: person.role,\n      linkedin: person.linkedin,\n\n      email: verifier.email,\n      score: matchScore,\n\n      quality: verifier.free_email ? \"LOW\" : \"HIGH\"\n    });\n  }\n}\n\nreturn results.map(r => ({ json: r }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4336,
+        592
+      ],
+      "id": "36ccac75-f419-4098-aaf9-ba45312abbf3",
+      "name": "Code in JavaScript3"
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => {\n  const name = item.json.full_name.toLowerCase().replace(/\\s/g, '');\n  const domain = item.json.website.toLowerCase();\n\n  return {\n    json: {\n      ...item.json,\n      match_key: `${name}_${domain}`\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3648,
+        592
+      ],
+      "id": "d2596efd-f85a-4e2b-afed-fa961f50b066",
+      "name": "Code in JavaScript4"
+    },
+    {
+      "parameters": {
+        "jsCode": "const results = [];\n\nfor (const item of items) {\n  const data = item.json.data;\n\n  // Skip invalid or missing\n  if (!data || data.status !== \"valid\" || !data.email) continue;\n\n  results.push({\n    email: data.email,\n    status: data.status,\n    domain: data.domain,\n    free_email: data.free_email,\n    confidence: data.domain_status\n  });\n}\n\nreturn results.map(r => ({ json: r }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4000,
+        592
+      ],
+      "id": "00964118-ade2-41cb-a8d1-5afd2311672b",
+      "name": "Code in JavaScript2"
+    },
+    {
+      "parameters": {
+        "url": "https://api.getprospect.com/v2/email-finder",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "full_name",
+              "value": "={{ $json.full_name }}"
+            },
+            {
+              "name": "domain",
+              "value": "={{ $json.website }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Api-Key",
+              "value": "fa36c6d2-6abf-4afe-a2a8-2e4f32d983dc"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        3840,
+        592
+      ],
+      "id": "520e2439-7cf9-489a-85c6-389d913c8a43",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Get verified results from the current node\nconst verifiedItems = $input.all();\n\n// 2. Access the original profile list (ensure this node name is correct)\nconst sourceProfiles = $(\"Filter Names (Fixed)1\").all();\n\nconst finalLeads = [];\n\nfor (const item of verifiedItems) {\n  const verifiedEmail = item.json.email.toLowerCase();\n  const [handle, emailDomain] = verifiedEmail.split('@');\n\n  // Find the match by checking all possible connections\n  const personMatch = sourceProfiles.find(profile => {\n    const website = (profile.json.website || \"\").toLowerCase();\n    const firstName = (profile.json.first_name || \"\").toLowerCase();\n    const lastName = (profile.json.last_name || \"\").toLowerCase();\n    const fullName = (profile.json.full_name || \"\").toLowerCase();\n\n    // POSSIBILITY 1: Domain/Subdomain Match\n    // Matches \"salesforce.com\" with \"help.salesforce.com\" or \"stripe.com\" with \"docs.stripe.com\"\n    const domainMatch = website.includes(emailDomain) || emailDomain.includes(website.replace(/^(www\\.|docs\\.|help\\.|app\\.)/, ''));\n\n    // POSSIBILITY 2: Name handle match\n    // Matches \"mbenioff\" if first_name is \"Marc\" or last_name is \"Benioff\"\n    // Also matches \"pcollison\" for Patrick Collison\n    const nameInHandle = handle.includes(firstName) || \n                         handle.includes(lastName) || \n                         (firstName.length > 0 && handle.startsWith(firstName[0]) && handle.includes(lastName));\n\n    return domainMatch && nameInHandle;\n  });\n\n  if (personMatch) {\n    finalLeads.push({\n      json: {\n        name: personMatch.json.full_name,\n        company: personMatch.json.company,\n        website: personMatch.json.website,\n        email: item.json.email,\n        linkedin_url: personMatch.json.linkedin,\n        match_type: \"Success\"\n      }\n    });\n  } else {\n    // POSSIBILITY 3: Fallback (Optional)\n    // If no perfect match, you can still output the email with \"Unknown\" to avoid losing data\n    finalLeads.push({\n      json: {\n        name: \"Manual Review Required\",\n        company: emailDomain.split('.')[0],\n        website: emailDomain,\n        email: item.json.email,\n        linkedin_url: \"N/A\",\n        match_type: \"Review\"\n      }\n    });\n  }\n}\n\nreturn finalLeads;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4544,
+        592
+      ],
+      "id": "77bb4ac1-25c7-4c61-9796-57981dd144c4",
+      "name": "Code in JavaScript5"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Jina AI Scraper (Free)": {
+      "main": [
+        [
+          {
+            "node": "Limit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Unified Input Logic1": {
+      "main": [
+        [
+          {
+            "node": "Query Refiner1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Refiner1": {
+      "main": [
+        [
+          {
+            "node": "Query Architect (AI)1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Architect (AI)1": {
+      "main": [
+        [
+          {
+            "node": "Query Parser1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Parser1": {
+      "main": [
+        [
+          {
+            "node": "Serper Discovery1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Serper Discovery1": {
+      "main": [
+        [
+          {
+            "node": "Item Separator1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Item Separator1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Output Parser1": {
+      "main": [
+        [
+          {
+            "node": "Domain Recovery1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Domain Recovery1": {
+      "main": [
+        [
+          {
+            "node": "Domain Syncer1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Domain Syncer1": {
+      "main": [
+        [
+          {
+            "node": "Union Results1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Union Results1": {
+      "main": [
+        [
+          {
+            "node": "Serper LinkedIn Search1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Serper LinkedIn Search1": {
+      "main": [
+        [
+          {
+            "node": "Extract Name1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Name1": {
+      "main": [
+        [
+          {
+            "node": "Filter Names (Fixed)1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Names (Fixed)1": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Limit1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets Output1": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook1": {
+      "main": [
+        [
+          {
+            "node": "Unified Input Logic1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Wait1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait1": {
+      "main": [
+        [
+          {
+            "node": "Jina AI Scraper (Free)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "AI Output Parser1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript3": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript4": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript5": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets Output1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "415f942a-709b-4443-b56f-02835e862e38",
+  "meta": {
+    "instanceId": "48873ca0faf2834fcac348c85b5cfe8a77d198239fa094d25a95512e1a2e676b"
+  },
+  "id": "pGcRpaUVn15gB5CI",
+  "tags": []
+}
