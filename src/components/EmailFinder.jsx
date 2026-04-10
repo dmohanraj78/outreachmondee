@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Loader2, Database, RefreshCw, PlusCircle } from 'lucide-react';
 import axios from 'axios';
+import toast from 'react-hot-toast';
 import { N8N_CONFIG } from '../config';
 import EmptyState from './EmptyState';
 
@@ -36,10 +37,10 @@ const EmailFinder = () => {
     fetchRecentLeads();
   }, []);
 
-  // 3. Add/Append new Query to Google Sheet via n8n
   const handleAddQuery = async (e) => {
     e.preventDefault();
     setLoading(true);
+    const toastId = toast.loading('Adding query to Google Sheet...');
     try {
       await axios.post(N8N_CONFIG.SAVE_QUERY_WEBHOOK, { 
         Query: newQuery.query, 
@@ -49,28 +50,28 @@ const EmailFinder = () => {
       const addedQuery = { Query: newQuery.query, Signal: newQuery.signal };
       setQueries(prev => [addedQuery, ...prev]);
       setNewQuery({ ...newQuery, query: '' });
-      alert("Success! Source query added to Google Sheet.");
+      toast.success("Success! Source query added.", { id: toastId });
       setTimeout(fetchQueries, 5000);
     } catch (error) {
       console.error("Save Query Error:", error);
-      alert("Failed to append row.");
+      toast.error("Failed to append row.", { id: toastId });
     } finally {
       setLoading(false);
     }
   };
 
-  // 4. Trigger the actual discovery workflow
   const handleTriggerDiscovery = async () => {
     setLoading(true);
+    const toastId = toast.loading('Scanning for leads...');
     try {
       await axios.post(N8N_CONFIG.FINDER_WEBHOOK);
       setTimeout(() => {
         setLoading(false);
         fetchRecentLeads();
       }, 5000);
-      alert("Full scan started! Results will appear below as they are found.");
+      toast.success("Discovery started! Results will appear below.", { id: toastId });
     } catch (error) {
-      alert("Start discovery failed.");
+      toast.error("Start discovery failed.", { id: toastId });
       setLoading(false);
     }
   };

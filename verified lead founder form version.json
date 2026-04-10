@@ -3,28 +3,28 @@
   "nodes": [
     {
       "parameters": {
-        "jsCode": "let query = $json[\"Target Industry / Query\"] || \"SaaS companies\";\nlet signal = $json[\"signal\"] || \"Series B funding\";\nlet filter = $json[\"filter\"] || \"India mid-range (50-500 employees)\";\nreturn [{ json: { Query: query, Signal: signal, Filter: filter } }];"
+        "jsCode": "const body = $json.body || $json;\n\n// 1. Extract values strictly from the incoming webhook\nconst query = body[\"Target Industry / Query\"] || body.industry || body.query || \"\";\nconst signal = body.signal || body.Signal || \"\";\nconst filter = body.filter || body.filters || body.Filter || \"\";\n\nreturn [{ \n  json: { \n    Query: query, \n    Signal: signal, \n    Filter: filter \n  } \n}];"
       },
-      "id": "a9967c19-bc9b-40d7-9a92-1aa5de3b2f96",
+      "id": "31dc0af5-ba42-4368-b540-ed4e3190761b",
       "name": "Unified Input Logic",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        9584,
-        1472
+        240,
+        0
       ]
     },
     {
       "parameters": {
-        "jsCode": "let query = ($json.Query || \"\").trim();\nlet filter = ($json.Filter || \"\").trim();\nlet signal = ($json.Signal || \"\").trim();\nlet defaultFilter = 'india startup \"Series A\" OR \"Series B\" OR \"Series C\" -enterprise -mnc -global';\nlet finalQuery = `${query} ${signal} ${filter || defaultFilter}`;\nreturn { ...$json, final_query: finalQuery };"
+        "jsCode": "let query = ($json.Query || \"\").trim();\nlet filter = ($json.Filter || \"\").trim();\nlet signal = ($json.Signal || \"\").trim();\n// Construct the query strictly from user input\nlet finalQuery = `${query} ${signal} ${filter}`.trim();\nreturn { ...$json, final_query: finalQuery };"
       },
-      "id": "15057910-ad2d-4312-adf6-fc7c11ff2ec7",
+      "id": "5715a21e-ef13-4d5f-bd84-c78262d59679",
       "name": "Query Refiner",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        9808,
-        1472
+        464,
+        0
       ]
     },
     {
@@ -45,13 +45,13 @@
         "jsonBody": "={{ { \"q\": $json.final_query, \"num\": 10 } }}",
         "options": {}
       },
-      "id": "4857468c-bcd5-46c8-af06-b3a44dd2ce49",
+      "id": "b0db04f9-9ef2-45c9-b670-2d2726e5d1f5",
       "name": "Serper Company Search",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        10032,
-        1472
+        688,
+        0
       ]
     },
     {
@@ -65,27 +65,27 @@
         "messages": {
           "values": [
             {
-              "content": "\"You are a strict data extraction engine. Your goal is to identify Indian mid-range companies (50–500 employees, startups in Series A-C) from search results. You must ignore massive corporations (like TCS, Reliance, Google) and very small businesses. You always output valid JSON only.\""
+              "content": "=\"You are a high-speed data extraction engine. Your task is to identify and extract ALL companies mentioned in the search results. IMPORTANT: Do not use the name of the website that published the article (e.g., Clutch, Forbes, SaaS Talent) as the company name. Instead, look for the specific companies BEING DISCUSSED or LISTED in the text. For example, if an article from 'SaaS Talent' lists 'Steve Huffman of Reddit', the company name is 'Reddit' and the website is 'reddit.com'. Output valid JSON array only.\""
             },
             {
-              "content": "=\"Analyze these search results and extract the names of 3-5 INDIAN companies that are MID-RANGE startups (growing, 50-500 employees, Series A/B/C).\n\nSearch Results: {{ $json.organic }}\n\nOutput Requirement: Output ONLY a JSON array in this exact format: [{\"company\":\"Name\", \"website\":\"URL\"}]\""
+              "content": "={{ \"Search Results JSON: \" + JSON.stringify($json.organic) + \"\\n\\nTarget Criteria: \" + $(\"Unified Input Logic\").first().json.Query + \"\\n\\nTask: Identify and extract as many UNIQUE company-to-website pairs as possible from these results. Ignore the name of the source website.\\nOutput Requirement: Output ONLY a JSON array: [{\\\"company\\\":\\\"Actual Company Name\\\", \\\"website\\\":\\\"companydomain.com\\\"}]. If a website is missing, use 'N/A'.\" }}"
             }
           ]
         },
         "options": {}
       },
-      "id": "8e4dd523-8518-440f-b18d-0043b37df977",
+      "id": "548cfec2-05e5-48d3-be73-e07f7200d843",
       "name": "Ollama (AI Filter)",
       "type": "@n8n/n8n-nodes-langchain.ollama",
       "typeVersion": 1,
       "position": [
-        10256,
-        1472
+        912,
+        0
       ],
       "credentials": {
         "ollamaApi": {
-          "id": "ZslEvgkqBzKx2jBJ",
-          "name": "Ollama account 2"
+          "id": "FFPFwA8ZvFgxyIts",
+          "name": "Marketing"
         }
       }
     },
@@ -93,13 +93,13 @@
       "parameters": {
         "jsCode": "let raw = $json.content || $json.response || $json.text || \"\";\nraw = raw.replace(/```json/g, \"\").replace(/```/g, \"\").trim();\ntry { return JSON.parse(raw).map(item => ({ json: item })); } catch (e) { return []; }"
       },
-      "id": "81e07c82-230f-4575-9974-e228cc12064e",
+      "id": "62c8653a-fffd-4be0-80c4-fb2bb3815f0c",
       "name": "AI Output Parser",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        10608,
-        1472
+        1132,
+        0
       ]
     },
     {
@@ -120,26 +120,47 @@
         "jsonBody": "={{ { \"q\": \"site:linkedin.com/in \" + $json.company + \" CEO Founder\", \"num\": 1 } }}",
         "options": {}
       },
-      "id": "2d04af3b-36ed-4d5f-a533-65a14062db82",
+      "id": "a9939c29-958b-45eb-a78a-a2d3cbc95f46",
       "name": "Serper LinkedIn Search",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        10832,
-        1472
+        1352,
+        0
       ]
     },
     {
       "parameters": {
-        "jsCode": "// 1. Get all AI results to sync back the company/website info\nlet aiResults = $(\"AI Output Parser\").all();\n\n// 2. Process EVERY search result from Serper\nreturn $input.all().map((item, index) => {\n  let result = item.json.organic?.[0] || {};\n  let title = result.title || \"\";\n  let snippet = result.snippet || \"\";\n  \n  // SYNC: Get the corresponding company/website from the AI Parser node\n  let originalData = aiResults[index]?.json || {};\n\n  // 3. Clean up name from title\n  let namePart = title.split(\"-\")[0].split(\"|\")[0].split(\"–\")[0].trim();\n  let parts = namePart.split(\" \");\n  let first_name = parts[0] || \"\";\n  let last_name = parts.slice(1).join(\" \") || \"\";\n\n  // 4. 🔍 Snippet Recovery (for initials like \"Madhusudan E.\")\n  if (last_name.length < 2 && snippet.includes(first_name)) {\n    let snippetMatches = snippet.match(new RegExp(first_name + \"\\\\s+([A-Z][a-z]+)\", \"i\"));\n    if (snippetMatches && snippetMatches[1]) {\n      last_name = snippetMatches[1];\n      namePart = first_name + \" \" + last_name;\n    }\n  }\n\n  // 5. 🧹 Strip protocols from domain\n  let rawDomain = originalData.website || originalData.domain || \"\";\n  let cleanDomain = rawDomain\n    .replace(/^https?:\\/\\//, \"\")\n    .replace(/^www\\./, \"\")\n    .split(\"/\")[0];\n\n  // 🚫 SKIP: If last name is STILL missing or too short\n  if (last_name.length < 2) return null;\n\n  return {\n    json: {\n      company: originalData.company,\n      domain: cleanDomain,\n      full_name: namePart,\n      first_name: first_name,\n      last_name: last_name,\n      linkedin: result.link\n    }\n  };\n}).filter(i => i !== null);"
+        "jsCode": "// 🧠 Item-by-Item LinkedIn Parsing (Auto-linked by n8n)\nlet result = $json.organic?.[0] || {};\nlet title = result.title || \"\";\nlet snippet = result.snippet || \"\";\n\n// SYNC: n8n automatically pairs this item with the correct one from the AI node\nlet aiData = $(\"AI Output Parser\").item.json || {};\n\n// 1. Precise Split (Handles \" - \", \" | \", \" – \")\nlet titleParts = title.split(/ [\\-\\|\\–] /);\n\n// 2. Extract Name (Always the first part)\nlet namePart = titleParts[0]?.trim() || \"\";\nlet nameAtoms = namePart.split(\" \");\nlet first_name = nameAtoms[0] || \"\";\nlet last_name = nameAtoms.slice(1).join(\" \") || \"\";\n\n// 3. Extract Company from Title (if available)\nlet rawCompany = aiData.company || \"\";\nlet titleCompany = \"\";\n\nif (titleParts.length > 1) {\n  titleCompany = titleParts[1].replace(/Founder|CEO|Owner|Director|Managing|\\|/gi, \"\").trim();\n  if (titleCompany.toLowerCase() === \"linkedin\") {\n     titleCompany = titleParts[2]?.replace(/LinkedIn/gi, \"\").trim() || \"\";\n  }\n}\n\n// 4. Sanitization & Fallback\nlet finalCompany = (titleCompany.length > 2) ? titleCompany : rawCompany;\n\n// 5. 🧹 Snippet Recovery for Name\nif (last_name.length < 2 && snippet.includes(first_name)) {\n  let snippetMatches = snippet.match(new RegExp(first_name + \"\\\\s+([A-Z][a-z]+)\", \"i\"));\n  if (snippetMatches && snippetMatches[1]) {\n    last_name = snippetMatches[1];\n    namePart = first_name + \" \" + last_name;\n  }\n}\n\n// 6. 🧹 Domain Cleaning\nlet rawDomain = aiData.website || \"\";\nlet cleanDomain = rawDomain\n  .replace(/^https?:\\/\\//, \"\")\n  .replace(/^www\\./, \"\")\n  .split(\"/\")[0]\n  .split(\"?\")[0]\n  .trim();\n\n// 🚫 SKIP Check: Skip this item ONLY if domain is missing (Length check moved to If node)\nif (!cleanDomain || cleanDomain === \"N/A\") return [];\n\nreturn {\n  company: finalCompany,\n  domain: cleanDomain,\n  full_name: namePart,\n  first_name: first_name,\n  last_name: last_name,\n  linkedin: result.link,\n  website: rawDomain\n};"
       },
-      "id": "f69f6274-b343-414b-b046-117e94427196",
+      "id": "e9a569d9-5572-4e4f-b9d5-85e92d8cf878",
       "name": "Extract Name",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        11056,
-        1472
+        1572,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.last_name.length }}",
+              "operation": "larger",
+              "value2": 2
+            }
+          ]
+        }
+      },
+      "id": "67f1b21e-ef13-4d5f-bd84-c78262d59679",
+      "name": "Filter by Name Length",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1792,
+        0
       ]
     },
     {
@@ -162,19 +183,19 @@
             },
             {
               "name": "api_key",
-              "value": "092ff31599591d2603476c1612f61cb2e3cac4fc"
+              "value": "0297bb0a642eb10d25d8cf936f53aecf7ea6798b"
             }
           ]
         },
         "options": {}
       },
-      "id": "472f6560-fe8b-45a3-b58b-5c10c46fe810",
+      "id": "a5265933-dc6e-40b9-887a-920e265c862f",
       "name": "Hunter Email Finder",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
       "position": [
-        11280,
-        1472
+        2012,
+        0
       ]
     },
     {
@@ -215,16 +236,6 @@
               "canBeUsedToMatch": true
             },
             {
-              "id": "role",
-              "displayName": "role",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
               "id": "company",
               "displayName": "company",
               "required": false,
@@ -259,36 +270,6 @@
               "display": true,
               "type": "string",
               "canBeUsedToMatch": true
-            },
-            {
-              "id": "subject",
-              "displayName": "subject",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "email_body",
-              "displayName": "email_body",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
-            },
-            {
-              "id": "status",
-              "displayName": "status",
-              "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true,
-              "removed": true
             }
           ],
           "attemptToConvertTypes": false,
@@ -296,33 +277,33 @@
         },
         "options": {}
       },
-      "id": "1cd60fa1-c53b-408f-9c64-8ba1c9a48198",
+      "id": "ccf15e67-1dd6-4f0a-9cce-2de35f4febe7",
       "name": "Google Sheets Output",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4,
       "position": [
-        11712,
-        1472
+        2452,
+        0
       ],
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "KvqJRlFPzvWqVqdT",
+          "id": "5UXIJ2FO1VLOtJZe",
           "name": "Mondee"
         }
       }
     },
     {
       "parameters": {
-        "jsCode": "// Sync with the 'Extract Name' node to get the Name, Company, and LinkedIn\nlet leads = $(\"Extract Name\").all();\n\n// Use $input.all().map() to process every lead from Hunter.io\nreturn $input.all().map((item, index) => {\n  let email = item.json.data?.email;\n\n  // 🚫 SKIP: If no email was found, we filter this person out\n  if (!email) {\n    return null;\n  }\n\n  // SYNC: Get the matching info from the Extract Name node\n  let leadInfo = leads[index]?.json || {};\n\n  // 3. Return ONLY the specific fields you need\n  return {\n    json: {\n      name: leadInfo.full_name,\n      company: leadInfo.company,\n      website: leadInfo.domain,\n      linkedin: leadInfo.linkedin,\n      email: email\n    }\n  };\n}).filter(i => i !== null); // This removes the empty email leads\n"
+        "jsCode": "// Logic to map verified emails back to sheet fields\nlet leads = $input.all();\n\nreturn leads.map((item) => {\n  let email = item.json.data?.email;\n  if (!email) return null;\n\n  return {\n    json: {\n      name: item.json.name || item.json.full_name,\n      company: item.json.company,\n      website: item.json.website || item.json.domain,\n      linkedin: item.json.linkedin,\n      email: email\n    }\n  };\n}).filter(i => i !== null);"
       },
+      "id": "6d90e03b-5b73-4702-808d-879aa0245849",
+      "name": "Code in JavaScript",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        11488,
-        1472
-      ],
-      "id": "a03318eb-6a22-485f-9151-91c7a922c064",
-      "name": "Code in JavaScript"
+        2232,
+        0
+      ]
     },
     {
       "parameters": {
@@ -331,14 +312,15 @@
         "responseMode": "responseNode",
         "options": {}
       },
+      "id": "b720e2b0-8ae6-44b9-b6b4-0c5a761b21db",
+      "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
       "position": [
-        9344,
-        1472
+        0,
+        300,
+        0
       ],
-      "id": "97cf443e-93d9-4e13-aeba-3a330cbd531b",
-      "name": "Webhook",
       "webhookId": "c21bb28a-d21c-49fb-ba0e-5c3e1fccf743"
     },
     {
@@ -346,14 +328,14 @@
         "respondWith": "allIncomingItems",
         "options": {}
       },
+      "id": "9fc33779-c091-45ab-af5b-040f411256bc",
+      "name": "Respond to Webhook",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        11920,
-        1472
-      ],
-      "id": "2d763020-3bb8-475b-8e74-0a59c19b8007",
-      "name": "Respond to Webhook"
+        2672,
+        0
+      ]
     }
   ],
   "pinData": {},
@@ -428,6 +410,17 @@
       "main": [
         [
           {
+            "node": "Filter by Name Length",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter by Name Length": {
+      "main": [
+        [
+          {
             "node": "Hunter Email Finder",
             "type": "main",
             "index": 0
@@ -483,13 +476,14 @@
   "active": true,
   "settings": {
     "executionOrder": "v1",
-    "binaryMode": "separate"
+    "binaryMode": "separate",
+    "availableInMCP": false
   },
-  "versionId": "7fb98839-994f-474e-9627-9764b0bf7b90",
+  "versionId": "92bba992-3526-4cd0-a46f-7190f4b5f24b",
   "meta": {
     "templateCredsSetupCompleted": true,
-    "instanceId": "82355c3d14754dee65ede1e84f37c59fa7612a6294b4b7f16c316226d270746b"
+    "instanceId": "48873ca0faf2834fcac348c85b5cfe8a77d198239fa094d25a95512e1a2e676b"
   },
-  "id": "mBL0cSUzb1WmLoub",
+  "id": "9Pu6Ziq7uaeqgi3D",
   "tags": []
 }

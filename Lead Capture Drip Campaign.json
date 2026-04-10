@@ -1,0 +1,403 @@
+{
+  "name": "Lead Capture + Drip Campaign",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lead-capture",
+        "options": {}
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "e44d31cb-71bb-457f-b98a-2bb6da495d43",
+      "webhookId": "lead-capture-endpoint"
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "Name",
+              "value": "={{ $json.body.name }}"
+            },
+            {
+              "name": "Email",
+              "value": "={{ $json.body.email }}"
+            },
+            {
+              "name": "Interest",
+              "value": "={{ $json.body.interest }}"
+            },
+            {
+              "name": "Source",
+              "value": "={{ $json.body.source }}"
+            },
+            {
+              "name": "Status",
+              "value": "New Lead"
+            },
+            {
+              "name": "CreatedAt",
+              "value": "={{ $now }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Set Clean Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        200,
+        0
+      ],
+      "id": "709292c4-1188-438f-9a1b-10acab77a871"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.Email }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "name": "IF Email Valid",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        400,
+        0
+      ],
+      "id": "cd0b6bbf-34a0-40c2-bdb5-83e74a8ac2d1"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"message\": \"Lead captured successfully\"\n}",
+        "options": {}
+      },
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        600,
+        -100
+      ],
+      "id": "de4acbcb-a83d-4c33-87f5-9aab53059296"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "ENTER_YOUR_SHEET_ID_HERE",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Sheet1",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "name": "Append to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 3,
+      "position": [
+        800,
+        -100
+      ],
+      "id": "48b6c434-6ea2-47d0-bfd8-d6e24fcae2bd",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.Email }}",
+        "subject": "={{ $json.Name }}, welcome to the future of corporate travel ✈️",
+        "message": "=Hi {{ $json.Name }},\n\nWelcome to Miraee! I noticed you were exploring how we handle {{ $json.Interest }}.\n\nMiraee is your single, agentic hub to manage flights, hotels, cabs, and expenses without the manual chaos. No more chasing receipts. No more policy bypasses.\n\nIf you have any questions about getting your team onboarded, just reply to this email.\n\nBest,\nThe Miraee Team",
+        "options": {}
+      },
+      "name": "Send Welcome Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [
+        1000,
+        -100
+      ],
+      "id": "a90ab0ae-43f1-432d-961f-6a978f84cced",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 24,
+        "unit": "hours"
+      },
+      "name": "Wait 1 Day",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [
+        1200,
+        -100
+      ],
+      "id": "9d1b09b0-fa37-4d9f-9b2f-2d33d5ba4b81",
+      "webhookId": "wait-node-1"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.Email }}",
+        "subject": "How Miraee eliminates travel chaos for you, {{ $json.Name }}",
+        "message": "=Hi {{ $json.Name }},\n\nDid you know flight cancellations cost teams hours of productivity?\n\nWith Miraee's Agentic OS, our AI monitors weather and tech disruptions in real-time. If your flight is canceled, Miraee instantly suggests immediate alternatives and auto-books them the moment you approve.\n\nSince you're focused on {{ $json.Interest }}, I'd love to give you a quick 5-minute demo of our AI and expense engines in action.\n\nAre you open for a quick chat next week?\n\nBest,\nThe Miraee Team",
+        "options": {}
+      },
+      "name": "Send Offer Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [
+        1400,
+        -100
+      ],
+      "id": "e6f4ca2b-cb18-4d57-b0a5-8d5ea41bdf06",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 48,
+        "unit": "hours"
+      },
+      "name": "Wait 2 Days",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [
+        1600,
+        -100
+      ],
+      "id": "e6d302a2-3f62-4217-bf29-ec9ec51a2d52",
+      "webhookId": "wait-node-2"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.Email }}",
+        "subject": "Never manually log another receipt, {{ $json.Name }}",
+        "message": "=Hey {{ $json.Name }},\n\nExpense management shouldn't take hours.\n\nUsing Miraee, your employees literally just snap a photo of a receipt. Our AI parses it, tags it to the exact trip, ensures corporate budget compliance, and pings accounting for 1-click reimbursement.\n\nIt’s end-to-end automation from the first booking to the final financial audit.\n\nReady to upgrade your corporate travel stack? Let me know.\n\nCheers,\nYour Friends at Miraee",
+        "options": {}
+      },
+      "name": "Send Value Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [
+        1800,
+        -100
+      ],
+      "id": "cb1c3579-282e-4b24-814d-62029b35b6c9",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "Status",
+              "value": "Drip Completed"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Set Drip Status",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        2000,
+        -100
+      ],
+      "id": "b3ad3865-c7e0-47b8-bc23-6447814b30d3"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "ENTER_YOUR_SHEET_ID_HERE",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Sheet1",
+          "mode": "name"
+        },
+        "columnToMatchOn": "Email",
+        "valueToMatchOn": "={{ $json.Email }}",
+        "options": {}
+      },
+      "name": "Update Sheets Row",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 3,
+      "position": [
+        2200,
+        -100
+      ],
+      "id": "e1f13b63-14ba-4ed5-a226-f7f139fb2609",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Set Clean Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Clean Data": {
+      "main": [
+        [
+          {
+            "node": "IF Email Valid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Email Valid": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond to Webhook": {
+      "main": [
+        [
+          {
+            "node": "Append to Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append to Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "Send Welcome Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Welcome Email": {
+      "main": [
+        [
+          {
+            "node": "Wait 1 Day",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 1 Day": {
+      "main": [
+        [
+          {
+            "node": "Send Offer Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Offer Email": {
+      "main": [
+        [
+          {
+            "node": "Wait 2 Days",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 2 Days": {
+      "main": [
+        [
+          {
+            "node": "Send Value Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Value Email": {
+      "main": [
+        [
+          {
+            "node": "Set Drip Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Drip Status": {
+      "main": [
+        [
+          {
+            "node": "Update Sheets Row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveExecutionProgress": true
+  }
+}

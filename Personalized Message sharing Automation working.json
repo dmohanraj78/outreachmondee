@@ -2,17 +2,6 @@
   "name": "Personalized Message sharing Automation working",
   "nodes": [
     {
-      "parameters": {},
-      "type": "n8n-nodes-base.manualTrigger",
-      "typeVersion": 1,
-      "position": [
-        0,
-        96
-      ],
-      "id": "aa8382de-cf2f-43cf-aa88-136f45dd188d",
-      "name": "When clicking ‘Execute workflow’"
-    },
-    {
       "parameters": {
         "documentId": {
           "__rl": true,
@@ -33,15 +22,15 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
       "position": [
-        224,
-        96
+        992,
+        544
       ],
-      "id": "ebad0733-c1a4-4a38-aaad-02313650af25",
+      "id": "6fa77cf0-4337-498f-b131-2bd099d9374e",
       "name": "Get row(s) in sheet",
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "JEbTt0zril7zimiA",
-          "name": "Google Sheets account"
+          "id": "RQHgqiU45PVMtr8V",
+          "name": "Mondee 2"
         }
       }
     },
@@ -52,10 +41,10 @@
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
       "position": [
-        448,
-        96
+        1424,
+        544
       ],
-      "id": "45f73d7a-68fc-492e-9a97-3f497c8725da",
+      "id": "d6957e67-ab97-433c-96be-7629ca05a999",
       "name": "Loop Over Items"
     },
     {
@@ -64,10 +53,10 @@
       "name": "Replace Me",
       "typeVersion": 1,
       "position": [
-        736,
-        256
+        1712,
+        704
       ],
-      "id": "099e8b5a-d95c-492f-babf-9265a75adad9"
+      "id": "b4e34a20-ed59-4838-b157-7134efc91802"
     },
     {
       "parameters": {
@@ -92,15 +81,15 @@
       "type": "@n8n/n8n-nodes-langchain.ollama",
       "typeVersion": 1,
       "position": [
-        672,
-        -176
+        1648,
+        272
       ],
-      "id": "0ed39062-66e5-4de5-8d1e-29df7a7fc3ba",
+      "id": "4db9b8d6-a1ff-48bd-a850-549434dd4801",
       "name": "Message a model",
       "credentials": {
         "ollamaApi": {
-          "id": "0GXRgtwWrYvi3RpE",
-          "name": "Ollama account 5"
+          "id": "GDLVs3PgktcseISO",
+          "name": "Ollama account"
         }
       }
     },
@@ -111,10 +100,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1248,
-        -176
+        2224,
+        272
       ],
-      "id": "e5ef623d-09a1-43e4-8b1e-cbe1aaa988a3",
+      "id": "4f5e5488-9d8f-4ee4-9232-c8fa84da7947",
       "name": "Consolidate Search Results"
     },
     {
@@ -140,15 +129,15 @@
       "type": "@n8n/n8n-nodes-langchain.ollama",
       "typeVersion": 1,
       "position": [
-        2144,
-        -112
+        2672,
+        352
       ],
-      "id": "a28eb5d8-dbe5-4f83-910f-e7fc6d04f264",
+      "id": "51f1a151-a1bd-4396-85a6-98c027fa9e96",
       "name": "Message a model1",
       "credentials": {
         "ollamaApi": {
-          "id": "0GXRgtwWrYvi3RpE",
-          "name": "Ollama account 5"
+          "id": "GDLVs3PgktcseISO",
+          "name": "Ollama account"
         }
       }
     },
@@ -157,14 +146,13 @@
         "mode": "runOnceForEachItem",
         "jsCode": "let text = $json.content;\n\n// remove markdown if AI adds ```json\ntext = text.replace(/```json/g, '').replace(/```/g, '').trim();\n\nlet parsed = {};\n\ntry {\n  parsed = JSON.parse(text);\n} catch (e) {\n  parsed = {\n    intent_signal: \"unknown\",\n    summary: \"Parsing failed\",\n    opportunity: \"N/A\"\n  };\n}\n\nreturn {\n  json: {\n    ...$json,\n    intent_signal: parsed.intent_signal || \"unknown\",\n    summary: parsed.summary || \"Could not analyze snippet\",\n    opportunity: parsed.opportunity || \"Manual review recommended\"\n  }\n};"
       },
-
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2496,
-        -112
+        3024,
+        352
       ],
-      "id": "82e0fc42-efe3-4efd-8760-ecda6daee17e",
+      "id": "f301720c-1626-445e-937f-fd0b56922bce",
       "name": "Code in JavaScript1"
     },
     {
@@ -190,41 +178,18 @@
       "type": "@n8n/n8n-nodes-langchain.ollama",
       "typeVersion": 1,
       "position": [
-        2944,
-        -32
+        3472,
+        416
       ],
-      "id": "deeb760c-4f0c-4801-b4c5-c432f13ec561",
+      "id": "14755328-7600-4b90-8f21-17852f06cf12",
       "name": "Message a model2",
       "credentials": {
         "ollamaApi": {
-          "id": "0GXRgtwWrYvi3RpE",
-          "name": "Ollama account 5"
+          "id": "GDLVs3PgktcseISO",
+          "name": "Ollama account"
         }
       }
     },
-    {
-      "parameters": {
-        "operation": "google_ai_mode",
-        "q": "={{$json[\"content\"]}}",
-        "additionalFields": {},
-        "requestOptions": {}
-      },
-      "type": "n8n-nodes-serpapi.serpApi",
-      "typeVersion": 1,
-      "position": [
-        1024,
-        -176
-      ],
-      "id": "2c3dd5e1-43b3-46cd-a65d-8ea7c44b0e3b",
-      "name": "Google_ai_mode search",
-      "credentials": {
-        "serpApi": {
-          "id": "8tQ8teCjUleeLw8s",
-          "name": "SerpApi account 4"
-        }
-      }
-    },
-
     {
       "parameters": {
         "jsCode": "let output = [];\n\nfor (const item of items) {\n\n  let text = item.json.content || item.json || \"\";\n\n  // convert object to string if needed\n  if (typeof text !== \"string\") {\n    text = JSON.stringify(text);\n  }\n\n  // remove markdown if present\n  text = text.replace(/```json/g, '').replace(/```/g, '').trim();\n\n  // fix escaped new lines and quotes\n  text = text.replace(/\\\\n/g, \" \").replace(/\\\\\"/g, '\"');\n\n  let parsed = {};\n\n  try {\n    parsed = JSON.parse(text);\n  } catch (err) {\n    parsed = { \n      subject: \"Meeting Request: Miraee Agentic OS\",\n      email_body: \"Hi, I tried to reach out but had an issue generating the personalized message. I'd love to show you how Miraee can simplify your travel and expenses.\"\n    };\n  }\n\n  output.push({\n    json: {\n      ...item.json, // PRESERVE ALL ORIGINAL DATA (including row_number)\n      name: parsed.name || item.json.name || item.json.Name || \"\",\n      subject: parsed.subject || \"\",\n      email_body: parsed.email_body || \"\"\n    }\n  });\n\n}\n\nreturn output;"
@@ -232,10 +197,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3296,
-        -32
+        3824,
+        416
       ],
-      "id": "41ce2051-2791-4906-82ad-54eeedd52e33",
+      "id": "e8ffdd1e-30e2-41d2-b879-339a15615cb0",
       "name": "Code in JavaScript3"
     },
     {
@@ -247,10 +212,10 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        1920,
-        -112
+        2448,
+        352
       ],
-      "id": "b49ef9a8-a45c-46af-b89f-8d73eb0519cc",
+      "id": "d5876f21-d2bc-40dd-8c68-ad47d42ad959",
       "name": "Merge"
     },
     {
@@ -262,13 +227,58 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        2720,
-        -32
+        3248,
+        416
       ],
-      "id": "b9cd7ea4-2298-48e4-b3ec-0799092f74ea",
+      "id": "ce3ca9bc-215c-47c0-b637-a913145e10b5",
       "name": "Merge1"
     },
-
+    {
+      "parameters": {
+        "content": "Personalized Mail Generating Automation\n\nStep 1 - Get the data from previous work flow which we collected the person details \n\nStep 2 - Generating Search Queries to find Intent Signal \n\nStep 3 - Search with AI Google Mode search and find the resources \n\nStep 4 -  Message Models finds the Intent signal and pain point of icp \n\nStep 5 - Generating the Personalized Message and email subject related to them individualy and store in sheet",
+        "height": 336,
+        "width": 352
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        752,
+        -368
+      ],
+      "typeVersion": 1,
+      "id": "8d7e8ca4-4317-4d96-8414-ed87e4909f06",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "message-generate",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        768,
+        544
+      ],
+      "id": "f2383116-4868-4d81-b572-5545fd7b20c8",
+      "name": "Webhook",
+      "webhookId": "c2ba6cbe-1713-461f-8a6e-cae1cd34005b"
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        4544,
+        416
+      ],
+      "id": "a1c928fd-2af8-4dc7-8dfe-df0ec520a8f2",
+      "name": "Respond to Webhook"
+    },
     {
       "parameters": {
         "operation": "update",
@@ -289,6 +299,7 @@
         "columns": {
           "mappingMode": "defineBelow",
           "value": {
+            "row_number": "={{ $('Get row(s) in sheet').item.json.row_number }}",
             "subject": "={{ $json.subject }}",
             "email_body": "={{ $json.email_body }}"
           },
@@ -297,13 +308,64 @@
           ],
           "schema": [
             {
-              "id": "row_number",
-              "displayName": "row_number",
+              "id": "name",
+              "displayName": "name",
               "required": false,
               "defaultMatch": false,
               "display": true,
               "type": "string",
-              "canBeUsedToMatch": true
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "role",
+              "displayName": "role",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "company",
+              "displayName": "company",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "linkedin",
+              "displayName": "linkedin",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "company website",
+              "displayName": "company website",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
             },
             {
               "id": "subject",
@@ -322,6 +384,27 @@
               "display": true,
               "type": "string",
               "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": false
             }
           ],
           "attemptToConvertTypes": false,
@@ -332,52 +415,172 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.7,
       "position": [
-        3520,
-        -32
+        4208,
+        416
       ],
-      "id": "6536f3b7-89bf-49c6-8c2e-a29cc81b522b",
+      "id": "69b36d42-183a-4f56-8d01-2b1db6f3b0fe",
       "name": "Update row in sheet",
       "credentials": {
         "googleSheetsOAuth2Api": {
-          "id": "JEbTt0zril7zimiA",
-          "name": "Google Sheets account"
+          "id": "5UXIJ2FO1VLOtJZe",
+          "name": "Mondee"
         }
       }
     },
     {
       "parameters": {
-        "content": "Personalized Mail Generating Automation\n\nStep 1 - Get the data from previous work flow which we collected the person details \n\nStep 2 - Generating Search Queries to find Intent Signal \n\nStep 3 - Search with AI Google Mode search and find the resources \n\nStep 4 -  Message Models finds the Intent signal and pain point of icp \n\nStep 5 - Generating the Personalized Message and email subject related to them individualy and store in sheet",
-        "height": 336,
-        "width": 352
+        "url": "https://serpapi.com/search.json",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "engine",
+              "value": "google"
+            },
+            {
+              "name": "ai_mode",
+              "value": "true"
+            },
+            {
+              "name": "q",
+              "value": "={{$json[\"content\"]}}"
+            },
+            {
+              "name": "api_key",
+              "value": "f4a2839649f361bbd96ed269807d874ff19fa7c334129e6081f622f119c131dd"
+            },
+            {
+              "name": "Location",
+              "value": "India"
+            }
+          ]
+        },
+        "options": {}
       },
-      "type": "n8n-nodes-base.stickyNote",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
       "position": [
-        -48,
-        -256
+        2000,
+        272
       ],
+      "id": "caf56073-5c73-48bf-9d1d-32b2f33f0c02",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "721d7611-8901-44cb-b82c-4d17a9a049c1",
+              "leftValue": "={{ $json.subject }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "empty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "c5891f05-74ac-4184-bb65-11ad01bfecb0",
+              "leftValue": "={{ $json.email_body }}",
+              "rightValue": "",
+              "operator": {
+                "type": "array",
+                "operation": "empty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1200,
+        544
+      ],
+      "id": "39f9fef0-e8dd-4ff8-a87b-1f78636ce663",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "path": "get-drafts",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "id": "0a85d065-c479-4ba6-91e6-fe672a66868d",
-      "name": "Sticky Note"
+      "position": [
+        688,
+        240
+      ],
+      "id": "ceb31ea3-8fa0-4ca1-ae97-7c4b29367f3d",
+      "name": "Webhook: Get Drafts",
+      "webhookId": "45222715-1a95-4226-aea4-dd7688092ee8"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls",
+          "mode": "list",
+          "cachedResultName": "ICP",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1759447022,
+          "mode": "list",
+          "cachedResultName": "Verified Emails",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls/edit#gid=1759447022"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        912,
+        240
+      ],
+      "id": "22a37fb7-f5bf-4ffd-9ace-7d3268d7478f",
+      "name": "Read Drafts",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "5UXIJ2FO1VLOtJZe",
+          "name": "Mondee"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1136,
+        240
+      ],
+      "id": "7b1a64bf-7eae-45e3-9742-9bacc5d9c8cb",
+      "name": "Respond with Drafts"
     }
   ],
   "pinData": {},
   "connections": {
-    "When clicking ‘Execute workflow’": {
-      "main": [
-        [
-          {
-            "node": "Get row(s) in sheet",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Get row(s) in sheet": {
       "main": [
         [
           {
-            "node": "Loop Over Items",
+            "node": "If",
             "type": "main",
             "index": 0
           }
@@ -427,18 +630,7 @@
       "main": [
         [
           {
-            "node": "Google_ai_mode search",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Google_ai_mode search": {
-      "main": [
-        [
-          {
-            "node": "Consolidate Search Results",
+            "node": "HTTP Request",
             "type": "main",
             "index": 0
           }
@@ -515,7 +707,73 @@
       "main": [
         [
           {
-            "node": "Append row in sheet",
+            "node": "Update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Consolidate Search Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: Get Drafts": {
+      "main": [
+        [
+          {
+            "node": "Read Drafts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Drafts": {
+      "main": [
+        [
+          {
+            "node": "Respond with Drafts",
             "type": "main",
             "index": 0
           }
@@ -523,17 +781,17 @@
       ]
     }
   },
-  "active": false,
+  "active": true,
   "settings": {
     "executionOrder": "v1",
     "binaryMode": "separate",
     "availableInMCP": false
   },
-  "versionId": "b29c7871-2d9e-42fe-be37-4a416e3edd10",
+  "versionId": "79b06a18-7cac-4cd3-9a24-27928f30c880",
   "meta": {
     "templateCredsSetupCompleted": true,
-    "instanceId": "261fd5aca1545bcb0a6afb7acb08f04ae3076b5defd23a381f7077f851be4d92"
+    "instanceId": "48873ca0faf2834fcac348c85b5cfe8a77d198239fa094d25a95512e1a2e676b"
   },
-  "id": "ZGX8GOkHuIg4tPEr",
+  "id": "DCfq0YKJI5MT1fmP",
   "tags": []
 }

@@ -49,7 +49,7 @@ const MailGenerator = () => {
       }, 5000);
       alert("AI personalization started! The dashboard will refresh automatically.");
     } catch (error) {
-      alert("Failed to start personalization.");
+      alert("Failed to start personalization: " + (error.message || error.toString()));
       setLoading(false);
     }
   };

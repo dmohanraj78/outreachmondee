@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Loader2, Database, RefreshCw } from 'lucide-react';
 import axios from 'axios';
+import toast from 'react-hot-toast';
 import { N8N_CONFIG } from '../config';
 import EmptyState from './EmptyState';
 
@@ -26,24 +27,39 @@ const InstantSearch = () => {
   const handleDirectSearch = async (e) => {
     e.preventDefault();
     setFormLoading(true);
+    const toastId = toast.loading("Instant search initiated! This can take up to 4 minutes as AI researches leads...");
+    
     try {
-      const response = await axios.post(N8N_CONFIG.DIRECT_FINDER_WEBHOOK, {
+      // We fire the request but don't wait for the full 4-minute response as it will time out
+      axios.post(N8N_CONFIG.DIRECT_FINDER_WEBHOOK, {
         "Target Industry / Query": formSearch.industry,
         "signal": formSearch.signal,
         "filter": formSearch.filter
+      }).catch(err => {
+        // If it's a timeout error, we ignore it because we're polling anyway
+        console.log("Request connection closed or timed out, but background process should continue.");
       });
+
+      // Poll for results every 30 seconds for 5 minutes
+      let pollCount = 0;
+      const pollInterval = setInterval(async () => {
+        pollCount++;
+        await fetchRecentLeads();
+        
+        if (pollCount > 10) { // Stop polling after 5 minutes
+          clearInterval(pollInterval);
+          setFormLoading(false);
+        }
+      }, 30000);
+
+      toast.success("Monitoring for new leads in the background.", { id: toastId });
       
-      const newLeads = Array.isArray(response.data) ? response.data : [];
-      if (newLeads.length > 0) {
-        setResults(prev => [...newLeads, ...prev]);
-        alert(`Success! Found ${newLeads.length} new verified founders.`);
-      } else {
-        alert("No founders found for these specific criteria.");
-      }
+      // We allow the user to continue using the dashboard
+      setTimeout(() => setFormLoading(false), 5000);
+
     } catch (error) {
-      console.error("Direct search failed", error);
-      alert("Failed to run direct search.");
-    } finally {
+      console.error("Direct search trigger failed", error);
+      toast.error("Failed to initiate search.", { id: toastId });
       setFormLoading(false);
     }
   };

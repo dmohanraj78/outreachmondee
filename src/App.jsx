@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Toaster } from 'react-hot-toast';
 import EmailFinder from './components/EmailFinder';
 import InstantSearch from './components/InstantSearch';
 import MailGenerator from './components/MailGenerator';
@@ -7,7 +8,8 @@ import ActivityLog from './components/ActivityLog';
 import CloserAgent from './components/CloserAgent';
 import LinkedInAuthority from './components/LinkedInAuthority';
 import Dashboard from './components/Dashboard';
-import { LayoutDashboard, Calendar, Search, Zap, PenTool, Send, History, Share2, Menu, X, UserPlus } from 'lucide-react';
+import LeadCapture from './components/LeadCapture';
+import { LayoutDashboard, Calendar, Search, Zap, PenTool, Send, History, Share2, Menu, X, UserPlus, FileText } from 'lucide-react';
 
 const MONDEE_LOGO = "https://www.mondee.com/app/uploads/2026/03/Mondee_logo.svg";
 
@@ -24,6 +26,7 @@ function App() {
       case 'sender': return <EmailSender />;
       case 'linkedin': return <LinkedInAuthority />;
       case 'closer': return <CloserAgent />;
+      case 'capture': return <LeadCapture />;
       case 'log': return <ActivityLog />;
       default: return <Dashboard />;
     }
@@ -72,6 +75,10 @@ function App() {
           <div className={`nav-item ${activeTab === 'finder' ? 'active' : ''}`} onClick={() => handleTabClick('finder')}>
             <Search size={18} />
             <span>Lead Finder</span>
+          </div>
+          <div className={`nav-item ${activeTab === 'capture' ? 'active' : ''}`} onClick={() => handleTabClick('capture')}>
+            <FileText size={18} />
+            <span>Capture Form</span>
           </div>
           <div className={`nav-item ${activeTab === 'instant' ? 'active' : ''}`} onClick={() => handleTabClick('instant')}>
             <Zap size={18} />
@@ -126,6 +133,20 @@ function App() {
           }
         }
       `}</style>
+      <Toaster 
+        position="bottom-right" 
+        toastOptions={{ 
+          style: { 
+            background: '#172B4D', 
+            color: '#fff', 
+            fontSize: '14px', 
+            borderRadius: '8px',
+            border: '1px solid #42526E'
+          },
+          success: { iconTheme: { primary: '#E3FCEF', secondary: '#006644' } },
+          error: { iconTheme: { primary: '#FFFAE6', secondary: '#FF8B00' } }
+        }} 
+      />
     </div>
   );
 }

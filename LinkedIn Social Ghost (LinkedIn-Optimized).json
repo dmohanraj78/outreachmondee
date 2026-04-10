@@ -10,34 +10,12 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
       "position": [
-        4144,
-        1088
+        0,
+        0
       ],
-      "id": "99a70fff-790d-459d-99f6-fea0703ea02e",
+      "id": "2b4f03e5-097d-4072-bc1a-32334cde12a2",
       "name": "Webhook",
       "webhookId": "62e1b985-0a11-41a0-9d2a-83bdcebeab22"
-    },
-    {
-      "parameters": {
-        "q": "=site:linkedin.com/posts {{ $json.body.query }}",
-        "location": "India",
-        "additionalFields": {},
-        "requestOptions": {}
-      },
-      "type": "n8n-nodes-serpapi.serpApi",
-      "typeVersion": 1,
-      "position": [
-        4368,
-        1088
-      ],
-      "id": "f7b4971d-198e-4f9b-8d02-bceb46491041",
-      "name": "SerpApi",
-      "credentials": {
-        "serpApi": {
-          "id": "jewsq6Skxr9W1pHF",
-          "name": "dhanushm.raja"
-        }
-      }
     },
     {
       "parameters": {
@@ -46,10 +24,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        4592,
-        1088
+        448,
+        0
       ],
-      "id": "37bd04ad-dd32-476e-b256-52f26c8a61e6",
+      "id": "4bf154d4-d98a-4ce6-8aac-4bf36f40aae0",
       "name": "LinkedIn Filter"
     },
     {
@@ -74,15 +52,15 @@
       "type": "@n8n/n8n-nodes-langchain.ollama",
       "typeVersion": 1,
       "position": [
-        4816,
-        1088
+        672,
+        0
       ],
-      "id": "800ba88f-e7e6-4238-ba05-c27fedd58bb9",
+      "id": "36d309b0-e826-40e6-a73d-4c6d676207c8",
       "name": "Ollama",
       "credentials": {
         "ollamaApi": {
-          "id": "Nvj3vAClndnk6RHz",
-          "name": "Ollama account"
+          "id": "BZC1qAp83ZOYfHRL",
+          "name": "Instant Announcer"
         }
       }
     },
@@ -96,16 +74,16 @@
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.1,
       "position": [
-        5168,
-        1088
+        1024,
+        0
       ],
-      "id": "72650bed-a3bd-417b-8c51-a8f4796f3da0",
+      "id": "01aff9a9-fcd3-4812-aaef-acea23e9d5bd",
       "name": "Gmail",
       "webhookId": "8f6f34ae-5b14-464e-ad3d-20a3f2bb1618",
       "credentials": {
         "gmailOAuth2": {
-          "id": "XUCCI55l9hzYKkqI",
-          "name": "Gmail account"
+          "id": "5b2fYtWoLEnRYlSA",
+          "name": "Gmail account 2"
         }
       }
     },
@@ -118,11 +96,46 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        5376,
-        1088
+        1232,
+        0
       ],
-      "id": "4383b95f-aa6b-4dc6-844d-9336e0d6b4eb",
+      "id": "c7b1742f-c7c4-4cf7-a010-47ba3cdc0d3a",
       "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "url": "https://serpapi.com/search.json",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "engine",
+              "value": "google"
+            },
+            {
+              "name": "q",
+              "value": "=site:linkedin.com/posts {{$json[\"body\"][\"query\"]}}"
+            },
+            {
+              "name": "location",
+              "value": "India"
+            },
+            {
+              "name": "api_key",
+              "value": "bf59eec02e55ebd2c2dda0d5396370edd81e5170f414b0cbf632af4ba466597e"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        256,
+        0
+      ],
+      "id": "503bf0db-0a7f-47a8-b2c0-c55d886cb7e1",
+      "name": "HTTP Request"
     }
   ],
   "pinData": {},
@@ -131,18 +144,7 @@
       "main": [
         [
           {
-            "node": "SerpApi",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "SerpApi": {
-      "main": [
-        [
-          {
-            "node": "LinkedIn Filter",
+            "node": "HTTP Request",
             "type": "main",
             "index": 0
           }
@@ -181,18 +183,30 @@
           }
         ]
       ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "LinkedIn Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": true,
   "settings": {
     "executionOrder": "v1",
-    "binaryMode": "separate"
+    "binaryMode": "separate",
+    "availableInMCP": false
   },
-  "versionId": "ebfe19a4-64cc-4067-ab18-c69f7187b738",
+  "versionId": "c24ab552-c139-45ba-83d6-3cd6f9d6618b",
   "meta": {
     "templateCredsSetupCompleted": true,
-    "instanceId": "82355c3d14754dee65ede1e84f37c59fa7612a6294b4b7f16c316226d270746b"
+    "instanceId": "48873ca0faf2834fcac348c85b5cfe8a77d198239fa094d25a95512e1a2e676b"
   },
-  "id": "pjAHEC2vfHWtINSq",
+  "id": "uohINiNDT9Uhj3jh",
   "tags": []
 }

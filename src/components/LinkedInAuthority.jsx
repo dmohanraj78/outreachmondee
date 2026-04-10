@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Share2, Zap, MessageSquare, ExternalLink, Loader2, Copy, CheckCircle, ArrowRight, UserPlus, Users } from 'lucide-react';
+import { Share2, Zap, MessageSquare, ExternalLink, Loader2, Copy, CheckCircle, ArrowRight } from 'lucide-react';
 import axios from 'axios';
+import toast from 'react-hot-toast';
 import { N8N_CONFIG } from '../config';
 
 const LinkedInAuthority = () => {
@@ -10,10 +11,6 @@ const LinkedInAuthority = () => {
     const [progressStage, setProgressStage] = useState(0);
     const [results, setResults] = useState([]);
     const [copiedIndex, setCopiedIndex] = useState(null);
-    const [sendingCloser, setSendingCloser] = useState(null); // Track index of card being closed
-    const [closerStatus, setCloserStatus] = useState({}); // {index: 'success' | 'error' | 'loading'}
-    const [sourcedLeads, setSourcedLeads] = useState([]); // Database of previously found leads
-    const [selectedLeads, setSelectedLeads] = useState({}); // {resultIndex: leadObject}
 
     const stages = [
         "Connecting to Miraee nodes...",
@@ -24,17 +21,7 @@ const LinkedInAuthority = () => {
         "Formatting results for your dashboard..."
     ];
 
-    const fetchSourcedLeads = async () => {
-        try {
-            const response = await axios.get(N8N_CONFIG.FETCHER_WEBHOOK);
-            setSourcedLeads(Array.isArray(response.data) ? response.data : []);
-        } catch (error) {
-            console.error("Failed to fetch sourced leads", error);
-        }
-    };
-
     useEffect(() => {
-        fetchSourcedLeads();
         let interval;
         if (loading) {
             setProgressStage(0);
@@ -53,6 +40,8 @@ const LinkedInAuthority = () => {
         setLoading(true);
         setStatus(null);
         setResults([]);
+        const toastId = toast.loading('Agents analyzing LinkedIn data...');
+        
         try {
             const response = await fetch(N8N_CONFIG.RESEARCH_WEBHOOK, {
                 method: 'POST',
@@ -62,17 +51,19 @@ const LinkedInAuthority = () => {
             
             if (response.ok) {
                 const data = await response.json();
-                // n8n returns an array or single object. We want to handle both.
                 const formattedResults = Array.isArray(data) ? data : [data];
                 setResults(formattedResults);
                 setStatus('success');
+                toast.success(`Found ${formattedResults.length} relevant trend(s)!`, { id: toastId });
                 setCustomQuery(''); 
             } else {
                 setStatus('error');
+                toast.error('Failed to analyze data.', { id: toastId });
             }
         } catch (error) {
             console.error('Error triggering research:', error);
             setStatus('error');
+            toast.error('Network error during research.', { id: toastId });
         } finally {
             setLoading(false);
         }
@@ -82,43 +73,6 @@ const LinkedInAuthority = () => {
         navigator.clipboard.writeText(text);
         setCopiedIndex(index);
         setTimeout(() => setCopiedIndex(null), 2000);
-    };
-
-    const sendCloserAgent = async (result, index) => {
-        setSendingCloser(index);
-        setCloserStatus(prev => ({ ...prev, [index]: 'loading' }));
-
-        try {
-            const selectedLead = selectedLeads[index];
-            if (!selectedLead) {
-                alert("Please select a sourced lead first!");
-                return;
-            }
-
-            const response = await fetch(N8N_CONFIG.CLOSER_WEBHOOK, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    lead_name: selectedLead.name || selectedLead.Name,
-                    lead_company: selectedLead.company || selectedLead.Company,
-                    lead_linkedin: selectedLead.linkedin || selectedLead.LinkedIn_URL,
-                    row_number: selectedLead.row_number || selectedLead.Row_Number || selectedLead.row_index, 
-                    topic_title: result.title,
-                    research_content: result.content
-                }),
-            });
-
-            if (response.ok) {
-                setCloserStatus(prev => ({ ...prev, [index]: 'success' }));
-            } else {
-                setCloserStatus(prev => ({ ...prev, [index]: 'error' }));
-            }
-        } catch (error) {
-            console.error('Closer Agent Error:', error);
-            setCloserStatus(prev => ({ ...prev, [index]: 'error' }));
-        } finally {
-            setSendingCloser(null);
-        }
     };
 
     return (
@@ -258,56 +212,26 @@ const LinkedInAuthority = () => {
                                             </span>
                                         </div>
 
-                                        <div style={{ background: 'white', border: '1px solid var(--n30)', borderRadius: '12px', padding: '16px', marginBottom: '20px' }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', color: 'var(--n500)' }}>
-                                                <Users size={14} />
-                                                <span style={{ fontSize: '13px', fontWeight: 600 }}>Target a Sourced Lead</span>
-                                            </div>
-                                            <select 
-                                                style={{ marginBottom: 0 }}
-                                                onChange={(e) => setSelectedLeads(prev => ({ ...prev, [idx]: JSON.parse(e.target.value) }))}
-                                                value={selectedLeads[idx] ? JSON.stringify(selectedLeads[idx]) : ''}
-                                            >
-                                                <option value="">Select a Lead from Database...</option>
-                                                {sourcedLeads.map((lead, lIdx) => (
-                                                    <option key={lIdx} value={JSON.stringify(lead)}>
-                                                        {lead.name || lead.Name} ({lead.company || lead.Company})
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </div>
-
                                         <div style={{ display: 'flex', gap: '12px' }}>
                                             <button 
-                                                className="btn-secondary"
+                                                className="primary-btn"
                                                 onClick={() => copyToClipboard(result.content, idx)}
-                                                style={{ borderRadius: '8px', padding: '10px 20px', fontSize: '13px', flex: 1 }}
-                                            >
-                                                {copiedIndex === idx ? (
-                                                    <><CheckCircle size={14} /> Copied!</>
-                                                ) : (
-                                                    <><Copy size={14} /> Copy Comment</>
-                                                )}
-                                            </button>
-
-                                            <button 
-                                                onClick={() => sendCloserAgent(result, idx)}
-                                                disabled={sendingCloser === idx || closerStatus[idx] === 'success' || !selectedLeads[idx]}
                                                 style={{ 
+                                                    width: '100%',
                                                     borderRadius: '8px', 
-                                                    padding: '10px 20px', 
-                                                    fontSize: '13px', 
-                                                    flex: 1,
-                                                    background: closerStatus[idx] === 'success' ? 'var(--success-bg)' : 'var(--primary)',
-                                                    color: closerStatus[idx] === 'success' ? 'var(--success-text)' : 'white'
+                                                    padding: '12px 20px', 
+                                                    fontSize: '14px', 
+                                                    fontWeight: 700,
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    gap: '8px'
                                                 }}
                                             >
-                                                {closerStatus[idx] === 'loading' ? (
-                                                    <><Loader2 className="animate-spin" size={14} /> Sending...</>
-                                                ) : closerStatus[idx] === 'success' ? (
-                                                    <><CheckCircle size={14} /> Outreach Sent</>
+                                                {copiedIndex === idx ? (
+                                                    <><CheckCircle size={18} /> Copied to Clipboard!</>
                                                 ) : (
-                                                    <><UserPlus size={14} /> {selectedLeads[idx] ? `Close ${selectedLeads[idx].name || selectedLeads[idx].Name}` : 'Select Lead'}</>
+                                                    <><Copy size={18} /> Copy Expert Draft</>
                                                 )}
                                             </button>
                                         </div>
