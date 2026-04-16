@@ -1,37 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Activity, 
-  ShieldAlert, 
-  CheckCircle, 
-  XCircle, 
-  RefreshCw, 
-  Database, 
-  Mail, 
-  Linkedin,
-  Wand2,
-  AlertTriangle,
-  HeartPulse,
-  Terminal,
-  Brain,
-  ShieldCheck,
-  Cpu,
-  Zap
+  Activity, ShieldAlert, ShieldCheck, XCircle, RefreshCw, Database, Mail, Linkedin,
+  AlertTriangle, Terminal, Brain, Cpu, Zap
 } from 'lucide-react';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import { N8N_CONFIG } from '../config';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/Card';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/Card';
 import { Button } from './ui/Button';
 import { Badge } from './ui/Badge';
 import { cn } from '../lib/utils';
 import { useProcessTracking } from '../hooks/useProcessTracking';
 
 const AIDoctor = () => {
-  const [healthStatus, setHealthStatus] = useState({
-    webhooks: 'idle',
-    leads: 'idle',
-    smtp: 'idle'
-  });
+  const [healthStatus, setHealthStatus] = useState({ webhooks: 'idle', leads: 'idle', smtp: 'idle' });
   const [diagnostics, setDiagnostics] = useState([]);
   const [loading, setLoading] = useState(false);
   const [issues, setIssues] = useState([]);
@@ -46,20 +28,8 @@ const AIDoctor = () => {
     setLoading(true);
     setDiagnostics([]);
     setIssues([]);
-
-    // Miraee Contextual Labels for Kernel Audit
-    const nodeLabels = [
-      "Initializing Audit Swarm...",
-      "Pinging Webhook Terminals...",
-      "Kernel Logic Check...",
-      "Database Structural Scan...",
-      "Mapping Integrity Gaps...",
-      "Verifying SMTP Protocols...",
-      "Finalizing Kernal Audit..."
-    ];
-
-    startProcess("Full-Spectrum Kernel Audit", "Initializing diagnostic swarm for kernel-level integrity mapping. We are probing cloud nodes and sector integrity clusters.", nodeLabels);
-    addLog("Initializing full-spectrum kernel diagnostics...", "info");
+    startProcess("System Diagnostics", "Running kernel audit.");
+    addLog("Starting diagnostics...", "info");
 
     setHealthStatus(prev => ({ ...prev, webhooks: 'loading' }));
     const webhooksToTest = [
@@ -71,184 +41,155 @@ const AIDoctor = () => {
     let webhookIssues = 0;
     for (const hook of webhooksToTest) {
       try {
-        addLog(`Pinging ${hook.name} node...`, "info");
+        addLog(`Pinging ${hook.name}...`, "info");
         await axios.get(hook.url);
-        addLog(`${hook.name} node is RESPONSIVE.`, "success");
+        addLog(`${hook.name}: OK`, "success");
       } catch (err) {
         webhookIssues++;
-        addLog(`${hook.name} node FATAL ERROR.`, "error");
+        addLog(`${hook.name}: FAILED`, "error");
         setIssues(prev => [...prev, {
-          title: `${hook.name} Connectivity Error`,
-          desc: "The cloud intelligence node failed to respond within the protocol window.",
-          icon: ShieldAlert,
-          type: 'error'
+          title: `${hook.name} Error`, desc: "Node failed to respond.", icon: ShieldAlert, type: 'error'
         }]);
       }
     }
     setHealthStatus(prev => ({ ...prev, webhooks: webhookIssues === 0 ? 'healthy' : 'issue' }));
 
-    addLog("Parsing intelligence database for structural integrity...", "info");
+    addLog("Scanning database integrity...", "info");
     try {
       const response = await axios.get(N8N_CONFIG.FETCHER_WEBHOOK);
       const leads = Array.isArray(response.data) ? response.data : [];
-      
       const missingEmails = leads.filter(l => !(l.email || l.Email)).length;
       const missingLinkedIn = leads.filter(l => !(l.linkedin || l.LinkedIn)).length;
 
       if (missingEmails > 0) {
         setIssues(prev => [...prev, {
-          title: `Incomplete Lead Clusters (${missingEmails})`,
-          desc: `${missingEmails} corporate nodes lack verified delivery addresses.`,
-          icon: Mail,
-          type: 'warning'
+          title: `Missing Emails (${missingEmails})`, desc: `${missingEmails} leads lack verified emails.`,
+          icon: Mail, type: 'warning'
         }]);
       }
       if (missingLinkedIn > 0) {
         setIssues(prev => [...prev, {
-          title: `LinkedIn Profile Gaps (${missingLinkedIn})`,
-          desc: `${missingLinkedIn} identifiers are missing social identity mapping.`,
-          icon: Linkedin,
-          type: 'warning'
+          title: `Missing LinkedIn (${missingLinkedIn})`, desc: `${missingLinkedIn} leads lack LinkedIn profiles.`,
+          icon: Linkedin, type: 'warning'
         }]);
       }
-      addLog(`Database scan complete. Identified ${missingEmails + missingLinkedIn} protocol gaps.`, "info");
+      addLog(`Database scan: ${missingEmails + missingLinkedIn} gaps found.`, "info");
       setHealthStatus(prev => ({ ...prev, leads: (missingEmails + missingLinkedIn) === 0 ? 'healthy' : 'issue' }));
     } catch (err) {
-      addLog("Database structural query failed.", "error");
+      addLog("Database scan failed.", "error");
     }
 
-    addLog("Global system audit successfully finalized.", "success");
+    addLog("Diagnostics complete.", "success");
     setLoading(false);
     completeProcess();
   };
 
-  useEffect(() => {
-    runDiagnostics();
-  }, []);
+  useEffect(() => { runDiagnostics(); }, []);
 
   const StatusCard = ({ label, status, icon: Icon }) => (
-    <Card className="border-slate-100 shadow-sm overflow-hidden group bg-white">
-      <CardContent className="p-8">
+    <Card className={cn(
+      status === 'healthy' && "border-emerald-200/50",
+      status === 'issue' && "border-amber-200/50"
+    )}>
+      <CardContent className="p-5">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-5">
-            <div className="w-12 h-12 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-primary/50 group-hover:bg-primary group-hover:text-white transition-all">
-              <Icon size={20} />
+          <div className="flex items-center gap-3">
+            <div className={cn(
+              "w-9 h-9 rounded-lg flex items-center justify-center",
+              status === 'healthy' ? "bg-emerald-50 text-emerald-500" :
+              status === 'issue' ? "bg-amber-50 text-amber-500" :
+              "bg-slate-100 text-slate-400"
+            )}>
+              <Icon size={16} />
             </div>
-            <div className="space-y-0.5">
-              <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 leading-none">{label}</div>
-              <div className="text-lg font-bold text-slate-900 tracking-tight leading-none pt-1">
-                {status === 'healthy' ? 'Optimal' : status === 'loading' ? 'Analyzing...' : status === 'issue' ? 'Attention Required' : 'Standby'}
+            <div>
+              <div className="text-xs text-slate-500">{label}</div>
+              <div className="text-sm font-semibold text-slate-900">
+                {status === 'healthy' ? 'Healthy' : status === 'loading' ? 'Checking...' : status === 'issue' ? 'Attention' : 'Standby'}
               </div>
             </div>
           </div>
-          {status === 'healthy' ? (
-            <div className="w-8 h-8 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600 border border-emerald-100">
-               <ShieldCheck size={16} />
-            </div>
-          ) : status === 'issue' ? (
-            <div className="w-8 h-8 rounded-full bg-amber-50 flex items-center justify-center text-amber-600 border border-amber-100 animate-pulse">
-               <AlertTriangle size={16} />
-            </div>
-          ) : null}
+          <div className={cn(
+            "w-2 h-2 rounded-full",
+            status === 'healthy' ? "bg-emerald-500" :
+            status === 'issue' ? "bg-amber-500 animate-pulse" :
+            status === 'loading' ? "bg-blue-500 animate-pulse" :
+            "bg-slate-300"
+          )} />
         </div>
       </CardContent>
     </Card>
   );
 
   return (
-    <div className="space-y-10">
-      <header className="flex flex-col xl:flex-row justify-between items-start xl:items-end gap-8">
+    <div className="space-y-8">
+      <header className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
         <div className="space-y-1">
-           <div className="flex items-center gap-2 mb-2">
-              <Badge variant="outline" className="text-[10px] py-1 uppercase font-semibold text-slate-400 border-slate-200">SYSTEM KERNEL AUDIT</Badge>
-              <span className="text-slate-200">|</span>
-              <span className="text-[10px] text-slate-400 font-medium uppercase tracking-widest">Diagnostic Swarm</span>
-            </div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900 leading-none">
-            AI Diagnostic <span className="text-primary/70 font-medium">Center</span>
-          </h1>
-          <p className="text-base text-slate-500 max-w-2xl font-normal leading-relaxed">
-            Autonomous audit engine monitoring cloud synchronization, database integrity, and operational health.
-          </p>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">AI Doctor</h1>
+          <p className="text-sm text-slate-500 max-w-lg">System health monitoring and automated diagnostics.</p>
         </div>
-        <Button 
-          onClick={runDiagnostics} 
-          disabled={loading} 
-          variant="primary"
-          className="h-14 px-10 font-semibold tracking-wider text-[10px] uppercase shadow-lg shadow-primary/20 gap-3"
-        >
-          <RefreshCw size={16} className={cn(loading && "animate-spin")} />
-          {loading ? "Executing Audit..." : "Run Full Diagnostics"}
+        <Button onClick={runDiagnostics} loading={loading} className="h-10 px-5 text-xs gap-2">
+          <RefreshCw size={14} />
+          {loading ? "Running..." : "Run Diagnostics"}
         </Button>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        <StatusCard label="Cloud Connectivity" status={healthStatus.webhooks} icon={Activity} />
-        <StatusCard label="Structural Integrity" status={healthStatus.leads} icon={Database} />
-        <StatusCard label="Outreach Delivery" status={healthStatus.smtp} icon={Mail} />
+      {/* Status Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <StatusCard label="Connectivity" status={healthStatus.webhooks} icon={Activity} />
+        <StatusCard label="Data Integrity" status={healthStatus.leads} icon={Database} />
+        <StatusCard label="Outreach" status={healthStatus.smtp} icon={Mail} />
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-10">
-        {/* Identified Problems Section */}
-        <div className="xl:col-span-7 space-y-8">
-          <div className="flex items-center justify-between px-2">
-            <h3 className="text-xl font-bold text-slate-900 flex items-center gap-3 tracking-tight">
-              <ShieldAlert className="text-primary/50" size={24} />
-              Identified Deviations
+      <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
+        {/* Issues */}
+        <div className="xl:col-span-3 space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+              <ShieldAlert className="text-slate-400" size={16} />
+              Issues Found
             </h3>
-            <Badge variant="secondary" className="font-semibold bg-slate-50 text-[9px] tracking-wider">{issues.length} ISSUES FOUND</Badge>
+            <Badge variant="secondary" className="text-[10px]">{issues.length} issues</Badge>
           </div>
           
           <AnimatePresence mode="popLayout">
             {issues.length === 0 && !loading ? (
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.98 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="p-32 border border-slate-100 bg-white rounded-3xl flex flex-col items-center gap-6 text-center shadow-sm"
-              >
-                <div className="w-20 h-20 bg-emerald-50 rounded-2xl border border-emerald-100 flex items-center justify-center text-emerald-500 shadow-sm ring-4 ring-emerald-50/50">
-                   <ShieldCheck size={40} />
-                </div>
-                <div className="space-y-1">
-                  <h3 className="text-xl font-bold text-slate-900 tracking-tight">Kernel is Stable</h3>
-                  <p className="text-sm font-normal text-slate-500 max-w-xs leading-relaxed">No critical anomalies identified in the current operation cycle.</p>
-                </div>
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                <Card className="p-10 text-center">
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-500">
+                      <ShieldCheck size={24} />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-semibold text-slate-900">All Systems Healthy</h3>
+                      <p className="text-xs text-slate-500 mt-0.5">No issues detected.</p>
+                    </div>
+                  </div>
+                </Card>
               </motion.div>
             ) : (
-              <div className="space-y-6">
+              <div className="space-y-3">
                 {issues.map((issue, i) => (
-                  <motion.div
-                    key={i}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: i * 0.1 }}
-                  >
+                  <motion.div key={i} initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}>
                     <Card className={cn(
-                      "border-l-4 group hover:shadow-md transition-all duration-300 bg-white shadow-sm overflow-hidden",
-                      issue.type === 'error' ? "border-l-red-500" : "border-l-amber-500"
+                      "border-l-2",
+                      issue.type === 'error' ? "border-l-red-500" : "border-l-amber-400"
                     )}>
-                      <CardContent className="p-8">
-                        <div className="flex flex-col sm:flex-row gap-6 items-start">
+                      <CardContent className="p-5">
+                        <div className="flex gap-4 items-start">
                           <div className={cn(
-                            "w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm group-hover:scale-105 transition-transform",
-                            issue.type === 'error' ? "bg-red-50 text-red-500 border border-red-100" : "bg-amber-50 text-amber-600 border border-amber-100"
+                            "w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0",
+                            issue.type === 'error' ? "bg-red-50 text-red-500" : "bg-amber-50 text-amber-500"
                           )}>
-                            <issue.icon size={24} />
+                            <issue.icon size={16} />
                           </div>
-                          <div className="flex-1 space-y-6">
-                            <div className="space-y-1">
-                              <h4 className="text-xl font-bold text-slate-900 tracking-tight leading-tight">{issue.title}</h4>
-                              <p className="text-sm font-normal text-slate-500 leading-relaxed">{issue.desc}</p>
-                            </div>
-                            <Button 
-                              variant="primary" 
-                              size="lg"
-                              className="h-11 px-6 font-semibold tracking-wider text-[9px] uppercase gap-2 shadow-primary/10 group-hover:translate-x-1 transition-transform"
-                            >
-                              <Brain size={12} className="opacity-70" />
-                              Initiate Agentic Correction
-                            </Button>
+                          <div className="flex-1">
+                            <h4 className="text-sm font-semibold text-slate-900">{issue.title}</h4>
+                            <p className="text-xs text-slate-500 mt-0.5">{issue.desc}</p>
                           </div>
+                          <Button variant="ghost" size="sm" className="h-8 text-xs text-primary gap-1">
+                            <Brain size={12} /> Fix
+                          </Button>
                         </div>
                       </CardContent>
                     </Card>
@@ -259,62 +200,56 @@ const AIDoctor = () => {
           </AnimatePresence>
         </div>
 
-        {/* Diagnostic Terminal Log */}
-        <div className="xl:col-span-5">
-           <Card className="bg-slate-900 border-none shadow-xl rounded-3xl overflow-hidden sticky top-8">
-              <div className="h-12 bg-slate-800/50 px-6 flex items-center justify-between border-b border-slate-800">
-                 <div className="flex items-center gap-3">
-                    <div className="flex gap-1.5">
-                       <div className="w-2 h-2 rounded-full bg-red-400/20" />
-                       <div className="w-2 h-2 rounded-full bg-amber-400/20" />
-                       <div className="w-2 h-2 rounded-full bg-emerald-400/20" />
-                    </div>
-                    <div className="w-px h-3 bg-slate-700 mx-1" />
-                    <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                       <Terminal size={12} /> KERNEL TERMINAL
+        {/* Terminal */}
+        <div className="xl:col-span-2">
+          <Card className="bg-slate-900 border-none overflow-hidden sticky top-8">
+            <div className="h-10 bg-slate-800/60 px-4 flex items-center justify-between border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <div className="flex gap-1">
+                  <div className="w-2 h-2 rounded-full bg-red-400/30" />
+                  <div className="w-2 h-2 rounded-full bg-amber-400/30" />
+                  <div className="w-2 h-2 rounded-full bg-emerald-400/30" />
+                </div>
+                <span className="text-[10px] font-medium text-slate-500 flex items-center gap-1.5 ml-1">
+                  <Terminal size={10} /> Terminal
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                <span className="text-[9px] text-emerald-500 font-medium">Live</span>
+              </div>
+            </div>
+            <CardContent className="p-4 font-mono text-[11px] leading-relaxed">
+              <div className="space-y-1.5 max-h-[400px] overflow-y-auto custom-scrollbar-dark pr-2">
+                {diagnostics.length === 0 && (
+                  <div className="text-slate-600">Waiting for diagnostic events...</div>
+                )}
+                {diagnostics.map((log, i) => (
+                  <motion.div key={i} initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                    className="flex gap-3 pl-3 border-l border-slate-800 py-0.5"
+                  >
+                    <span className="text-slate-600 shrink-0">[{log.timestamp}]</span>
+                    <span className={cn(
+                      log.type === 'success' ? "text-emerald-400" : log.type === 'error' ? "text-red-400" : "text-slate-400"
+                    )}>
+                      {log.message}
                     </span>
-                 </div>
-                 <div className="flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                    <span className="text-[9px] font-semibold text-emerald-500 uppercase tracking-widest">Live Output</span>
-                 </div>
+                  </motion.div>
+                ))}
+                {loading && (
+                  <div className="flex items-center gap-2 text-primary animate-pulse pl-3 mt-2">
+                    <Cpu size={10} className="animate-spin" /> Analyzing...
+                  </div>
+                )}
               </div>
-              <CardContent className="p-8 font-mono text-[11px] leading-relaxed space-y-4">
-                 <div className="space-y-2 max-h-[500px] overflow-y-auto custom-scrollbar-dark pr-4">
-                    {diagnostics.length === 0 && (
-                       <div className="text-slate-600 font-normal">No diagnostic events cached. Run a full scan to populate core logs.</div>
-                    )}
-                    {diagnostics.map((log, i) => (
-                      <motion.div 
-                        key={i}
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        className="flex gap-4 border-l border-slate-800 pl-4 py-0.5"
-                      >
-                        <span className="text-slate-600 font-normal shrink-0">[{log.timestamp}]</span>
-                        <span className={cn(
-                          "font-normal break-words",
-                          log.type === 'success' ? "text-emerald-400" : log.type === 'error' ? "text-red-400" : "text-slate-400"
-                        )}>
-                          <span className="text-slate-800 mr-2">$</span> {log.message}
-                        </span>
-                      </motion.div>
-                    ))}
-                    {loading && (
-                      <div className="flex items-center gap-3 text-primary animate-pulse font-semibold mt-4 pl-4 text-[10px]">
-                         <Cpu size={12} className="animate-spin" />
-                         Analyzing cognitive subprocess clusters...
-                      </div>
-                    )}
-                 </div>
-              </CardContent>
-              <div className="p-5 bg-slate-950/50 border-t border-slate-800/50 flex items-center justify-between">
-                 <div className="flex items-center gap-3 text-[9px] font-semibold text-slate-500 uppercase tracking-widest">
-                    <Zap size={10} className="text-amber-500" /> Latency: 42ms
-                 </div>
-                 <div className="text-[9px] font-semibold text-slate-600 uppercase tracking-widest">Miraee OS v2.0-Audit</div>
+            </CardContent>
+            <div className="px-4 py-3 bg-slate-950/50 border-t border-slate-800/50 flex items-center justify-between">
+              <div className="flex items-center gap-2 text-[9px] text-slate-500">
+                <Zap size={9} className="text-amber-500" /> Latency: 42ms
               </div>
-           </Card>
+              <div className="text-[9px] text-slate-600">Miraee OS v2.0</div>
+            </div>
+          </Card>
         </div>
       </div>
     </div>

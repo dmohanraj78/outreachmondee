@@ -17,7 +17,17 @@ export const N8N_CONFIG = {
   // New: Drip & Diagnostics
   DRIP_ENROLL_WEBHOOK: "https://n8n.mondee.com/webhook/drip-enroll",
   DIAGNOSTICS_WEBHOOK: "https://n8n.mondee.com/webhook/diagnostics-test",
-  LEAD_CAPTURE_WEBHOOK: "https://n8n.mondee.com/webhook/lead-capture"
+  LEAD_CAPTURE_WEBHOOK: "https://n8n.mondee.com/webhook/lead-capture",
+  INTENT_LEADS_WEBHOOK: "https://n8n.mondee.com/webhook/intent-leads",
+  STATUS_FETCHER_WEBHOOK: "https://n8n.mondee.com/webhook/get-status",
+  SOCIAL_DISPATCH_WEBHOOK: "https://n8n.mondee.com/webhook/social-dispatch",
+  GET_SOCIAL_DRAFTS_WEBHOOK: "https://n8n.mondee.com/webhook/get-linkedinposts",
+  UPDATE_SOCIAL_DRAFT_WEBHOOK: "https://n8n.mondee.com/webhook/update-link",
+  GET_CAPTURE_FORM_WEBHOOK: "https://n8n.mondee.com/webhook/get-captureform",
+  GET_SEQUENCES_WEBHOOK: "https://n8n.mondee.com/webhook/get-sequences",
+  PROCESS_REPLY_WEBHOOK: "https://n8n.mondee.com/webhook/process-reply",
+  CREATE_MEETING_WEBHOOK: "https://n8n.mondee.com/webhook/create-meeting",
+  SCHEDULE_MEET_WEBHOOK: "https://n8n.mondee.com/webhook/schedule-meet"
 };
 
 export const UNIPILE_CONFIG = {

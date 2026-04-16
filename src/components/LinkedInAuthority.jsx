@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Share2, Zap, MessageSquare, ExternalLink, Loader2, Copy, CheckCircle, ArrowRight, Sparkles, Target, History } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Share2, Zap, MessageSquare, ExternalLink, Loader2, Copy, CheckCircle, ArrowRight, Sparkles, Target, History, Send, RefreshCw, Trash2, Maximize2, X } from 'lucide-react';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import { N8N_CONFIG } from '../config';
@@ -17,7 +17,27 @@ const LinkedInAuthority = () => {
     const [progressStage, setProgressStage] = useState(0);
     const [results, setResults] = useState([]);
     const [copiedIndex, setCopiedIndex] = useState(null);
+    const [sendingStatus, setSendingStatus] = useState({});
     const { startProcess, completeProcess, failProcess } = useProcessTracking();
+
+    const [previewIndex, setPreviewIndex] = useState(null);
+
+    const getSmartContent = (res) => {
+        if (res.Content) return res.Content;
+        if (res.content) return res.content;
+        
+        // Intelligent fallback: Find the longest string that isn't a URL, Title, or ID
+        const values = Object.values(res).filter(v => typeof v === 'string');
+        const longStrings = values.filter(v => 
+            v.length > 50 && 
+            !v.startsWith('http') && 
+            !v.startsWith('LNK') &&
+            v !== res.Title && 
+            v !== res.title
+        );
+        
+        return longStrings.length > 0 ? longStrings.reduce((a, b) => a.length > b.length ? a : b) : '';
+    };
 
     const stages = [
         "Initializing research swarm...",
@@ -27,6 +47,32 @@ const LinkedInAuthority = () => {
         "Drafting authority comment options...",
         "Finalizing intelligence output..."
     ];
+
+    const fetchDrafts = useCallback(async () => {
+        try {
+            const res = await fetch(N8N_CONFIG.GET_SOCIAL_DRAFTS_WEBHOOK);
+            if (res.ok) {
+                const rawData = await res.json();
+                let data = Array.isArray(rawData) ? rawData : (rawData.data || rawData.items || [rawData]);
+                
+                if (Array.isArray(data)) {
+                    const activeDrafts = data.filter(d => {
+                        const status = (d.Status || d.status || '').toLowerCase();
+                        return status !== 'deleted' && status !== 'sent';
+                    });
+                    setResults(activeDrafts);
+                }
+            }
+        } catch (error) {
+            console.error("Error fetching social drafts:", error);
+        }
+    }, []);
+
+    useEffect(() => {
+        fetchDrafts();
+        const pollInterval = setInterval(fetchDrafts, 15000);
+        return () => clearInterval(pollInterval);
+    }, [fetchDrafts]);
 
     useEffect(() => {
         let interval;
@@ -46,7 +92,6 @@ const LinkedInAuthority = () => {
 
         setLoading(true);
         setStatus(null);
-        setResults([]);
         startProcess("Social Authority Analysis", "Our cognitive agents are currently probing LinkedIn for the latest industry perspectives and trend data. We are drafting expert-level reactions based on real-time intelligence.");
         
         try {
@@ -57,12 +102,10 @@ const LinkedInAuthority = () => {
             });
             
             if (response.ok) {
-                const data = await response.json();
-                const formattedResults = Array.isArray(data) ? data : [data];
-                setResults(formattedResults);
                 setStatus('success');
                 setCustomQuery(''); 
                 completeProcess();
+                fetchDrafts(); // Fetch newest immediately
             } else {
                 setStatus('error');
                 failProcess(new Error("Social research workflow failed on the server."));
@@ -76,9 +119,74 @@ const LinkedInAuthority = () => {
         }
     };
 
-    const copyToClipboard = (text, index) => {
+    const updateDraftStatus = async (id, status, content = null) => {
+        try {
+            await fetch(N8N_CONFIG.UPDATE_SOCIAL_DRAFT_WEBHOOK, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ID: id, Status: status, Content: content })
+            });
+        } catch (e) {
+            console.error("Failed to sync Draft update:", e);
+        }
+    };
+
+    const handleSendEmail = async (idx) => {
+        const result = results[idx];
+        if (!result) return;
+        
+        const title = result.Title || result.title || '';
+        const link = result.Link || result.link || '';
+        const content = getSmartContent(result);
+
+        setSendingStatus(prev => ({ ...prev, [idx]: true }));
+
+        try {
+            const response = await axios.post(N8N_CONFIG.SOCIAL_DISPATCH_WEBHOOK, {
+                subject: `LinkedIn Opportunity: ${title.substring(0, 50)}...`,
+                message: `
+                    <h3>Expert LinkedIn Opportunity Found!</h3>
+                    <p><strong>Topic:</strong> <a href="${link}" style="color: #FA4D33; font-weight: bold;">${title}</a></p>
+                    <div style="background-color: #F9F4F0; padding: 24px; border-radius: 12px; border-left: 5px solid #4F001D; margin: 20px 0;">
+                        <h4 style="margin-top: 0; color: #4F001D;">Proposed Comments:</h4>
+                        <div style="white-space: pre-wrap; line-height: 1.6; color: #172B4D;">${content}</div>
+                    </div>
+                `
+            });
+
+            if (response.data.status === 'success') {
+                setResults(results.filter((_, i) => i !== idx)); // Immediately remove from UI
+                const id = result.ID || result.id;
+                if (id) updateDraftStatus(id, 'Sent', content);
+            }
+        } catch (error) {
+            console.error('Error sending email:', error);
+        } finally {
+            setSendingStatus(prev => ({ ...prev, [idx]: false }));
+        }
+    };
+
+    const handleDismiss = (idx) => {
+        const result = results[idx];
+        setResults(results.filter((_, i) => i !== idx));
+        const id = result?.ID || result?.id;
+        if (id) {
+            updateDraftStatus(id, 'Deleted');
+        }
+    };
+
+    const handleUpdateContent = (idx, newContent) => {
+        const newResults = [...results];
+        newResults[idx].Content = newContent;
+        newResults[idx].content = newContent; // Fallback
+        setResults(newResults);
+        
+        // Debounce actual db update could go here, for now it updates on Send Mail
+    };
+
+    const copyToClipboard = (text, idx) => {
         navigator.clipboard.writeText(text);
-        setCopiedIndex(index);
+        setCopiedIndex(idx);
         setTimeout(() => setCopiedIndex(null), 2000);
     };
 
@@ -99,7 +207,6 @@ const LinkedInAuthority = () => {
             </header>
 
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-10 items-start">
-                {/* Left Column: Research Input */}
                 <Card className="xl:col-span-4 border-slate-100 shadow-sm xl:sticky xl:top-8 overflow-hidden bg-white">
                     <CardHeader className="border-b border-slate-50 bg-slate-50/30 p-8">
                         <div className="space-y-1">
@@ -160,7 +267,6 @@ const LinkedInAuthority = () => {
                     </CardContent>
                 </Card>
 
-                {/* Right Column: Insight Feed */}
                 <div className="xl:col-span-8 space-y-8">
                     <div className="flex items-center justify-between px-2">
                          <div className="space-y-1">
@@ -187,21 +293,29 @@ const LinkedInAuthority = () => {
                             </motion.div>
                         )}
 
-                        {results.map((result, idx) => (
+                        {results.map((result, idx) => {
+                            const title = result.Title || result.title || 'Unknown Post Title';
+                            const link = result.Link || result.link || '#';
+                            const content = getSmartContent(result);
+                            
+                            return (
                             <motion.div
-                                key={idx}
+                                key={result.ID || idx}
                                 initial={{ opacity: 0, x: 20 }}
                                 animate={{ opacity: 1, x: 0 }}
                                 transition={{ delay: idx * 0.1 }}
                             >
-                                <Card className="border-slate-100 shadow-sm overflow-hidden group hover:shadow-md hover:border-accent/10 transition-all duration-300 bg-white">
+                                <Card className={cn(
+                                    "border-slate-100 shadow-sm overflow-hidden group hover:shadow-md hover:border-accent/10 transition-all duration-300 bg-white",
+                                    result.sent && "opacity-60"
+                                )}>
                                     <CardHeader className="flex flex-row items-start justify-between p-8 pb-6 border-b border-slate-50 bg-slate-50/30">
                                         <div className="space-y-2 flex-1 pr-10">
                                             <CardTitle className="text-xl font-bold leading-tight tracking-tight group-hover:text-primary transition-colors">
-                                                {result.title}
+                                                {title}
                                             </CardTitle>
                                             <a 
-                                                href={result.link} 
+                                                href={link} 
                                                 target="_blank" 
                                                 rel="noopener noreferrer"
                                                 className="inline-flex items-center gap-2 text-[10px] font-semibold text-accent uppercase tracking-wider hover:text-slate-900 transition-colors"
@@ -209,7 +323,9 @@ const LinkedInAuthority = () => {
                                                 Source Authority <ExternalLink size={12} />
                                             </a>
                                         </div>
-                                        <Badge variant="secondary" className="bg-white border-slate-100 text-slate-400 font-semibold text-[9px] px-3 py-1 tracking-wider">VERIFIED TREND</Badge>
+                                        <Badge variant={result.sent ? "success" : "secondary"} className="bg-white border-slate-100 text-slate-400 font-semibold text-[9px] px-3 py-1 tracking-wider uppercase">
+                                            {result.sent ? "DISPATCHED" : "VERIFIED TREND"}
+                                        </Badge>
                                     </CardHeader>
 
                                     <CardContent className="p-8 space-y-6">
@@ -222,44 +338,144 @@ const LinkedInAuthority = () => {
                                                 Perspective Draft
                                             </div>
                                             
-                                            <p className="text-lg font-normal text-slate-700 leading-relaxed mb-8">
-                                                "{result.content}"
-                                            </p>
+                                            <textarea 
+                                                className="w-full bg-transparent border-none text-lg font-normal text-slate-700 leading-relaxed mb-8 resize-none outline-none focus:ring-0 min-h-[120px]"
+                                                value={content}
+                                                onChange={(e) => handleUpdateContent(idx, e.target.value)}
+                                                disabled={result.sent}
+                                            />
 
                                             <div className="flex flex-col md:flex-row items-center justify-between gap-6 pt-6 border-t border-slate-200/50">
                                                 <div className="flex items-center gap-3">
                                                     <div className={cn(
                                                         "w-2 h-2 rounded-full",
-                                                        (result.content || '').length > 280 ? "bg-red-500 animate-pulse" : "bg-emerald-500"
+                                                        (content || '').length > 280 ? "bg-red-500 animate-pulse" : "bg-emerald-500"
                                                     )} />
                                                     <span className={cn(
                                                         "text-[10px] font-semibold tracking-wider uppercase",
-                                                        (result.content || '').length > 280 ? "text-red-500" : "text-slate-400"
+                                                        (content || '').length > 280 ? "text-red-500" : "text-slate-400"
                                                     )}>
-                                                        {(result.content || '').length} / 300 CHARACTERS
+                                                        {(content || '').length} / 300 CHARACTERS
                                                     </span>
                                                 </div>
 
-                                                <Button 
-                                                    variant={copiedIndex === idx ? "outline" : "primary"}
-                                                    onClick={() => copyToClipboard(result.content, idx)}
-                                                    className="w-full md:w-auto h-12 px-8 text-[10px] font-semibold tracking-wider uppercase rounded-xl gap-2"
-                                                >
-                                                    {copiedIndex === idx ? (
-                                                        <><CheckCircle size={16} className="text-emerald-500" /> Copied</>
-                                                    ) : (
-                                                        <><Copy size={16} /> Copy Draft</>
+                                                <div className="flex items-center gap-2 w-full md:w-auto">
+                                                    {!result.sent && (
+                                                        <>
+                                                            <Button 
+                                                                variant="ghost"
+                                                                onClick={() => setPreviewIndex(idx)}
+                                                                className="h-10 px-4 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+                                                            >
+                                                                <Maximize2 size={14} /> Preview
+                                                            </Button>
+                                                            <Button 
+                                                                variant="ghost"
+                                                                onClick={() => handleDismiss(idx)}
+                                                                className="h-10 px-4 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500 hover:bg-red-50 hover:text-red-500"
+                                                            >
+                                                                <Trash2 size={14} /> Delete
+                                                            </Button>
+                                                            <Button 
+                                                                variant="primary"
+                                                                onClick={() => handleSendEmail(idx)}
+                                                                disabled={sendingStatus[idx]}
+                                                                className="h-10 px-6 text-[10px] font-semibold uppercase tracking-wider rounded-xl gap-2 shadow-lg shadow-primary/20"
+                                                            >
+                                                                {sendingStatus[idx] ? (
+                                                                    <><Loader2 className="animate-spin" size={14} /> PROCESSING...</>
+                                                                ) : (
+                                                                    <><Send size={14} /> SEND MAIL</>
+                                                                )}
+                                                            </Button>
+                                                        </>
                                                     )}
-                                                </Button>
+                                                    <Button 
+                                                        variant={copiedIndex === idx ? "outline" : "ghost"}
+                                                        onClick={() => copyToClipboard(content, idx)}
+                                                        className="h-10 px-4 text-[10px] font-semibold tracking-wider uppercase rounded-xl gap-2"
+                                                    >
+                                                        {copiedIndex === idx ? <CheckCircle size={14} className="text-emerald-500" /> : <Copy size={14} />}
+                                                    </Button>
+                                                </div>
                                             </div>
                                         </div>
                                     </CardContent>
                                 </Card>
                             </motion.div>
-                        ))}
+                            )
+                        })}
                     </AnimatePresence>
                 </div>
             </div>
+
+            <AnimatePresence>
+                {previewIndex !== null && (
+                    <motion.div 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-900/40 backdrop-blur-sm"
+                        onClick={() => setPreviewIndex(null)}
+                    >
+                        <motion.div 
+                            initial={{ scale: 0.95, opacity: 0, y: 20 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.95, opacity: 0, y: 20 }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[85vh] flex flex-col overflow-hidden border border-slate-100"
+                        >
+                            <div className="flex items-center justify-between p-6 border-b border-slate-100 bg-slate-50/50">
+                                <div>
+                                    <h3 className="text-lg font-bold text-slate-900 tracking-tight">
+                                        {results[previewIndex]?.Title || results[previewIndex]?.title || 'Full Insight Preview'}
+                                    </h3>
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <Badge variant="outline" className="text-[9px] uppercase tracking-widest font-semibold text-primary border-primary/20 bg-primary/5">GHOST AGENT DRAFT</Badge>
+                                    </div>
+                                </div>
+                                <Button 
+                                    variant="ghost" 
+                                    onClick={() => setPreviewIndex(null)}
+                                    className="w-10 h-10 p-0 rounded-full hover:bg-slate-200 text-slate-500"
+                                >
+                                    <X size={20} />
+                                </Button>
+                            </div>
+                            <div className="p-8 overflow-y-auto flex-1 bg-white">
+                                <div className="prose prose-slate max-w-none text-base leading-loose whitespace-pre-wrap text-slate-700">
+                                    {getSmartContent(results[previewIndex])}
+                                </div>
+                            </div>
+                            <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
+                                <Button 
+                                    onClick={() => copyToClipboard(getSmartContent(results[previewIndex]), previewIndex)}
+                                    variant={copiedIndex === previewIndex ? "outline" : "secondary"}
+                                    className="h-12 px-6 gap-2 text-xs font-semibold uppercase tracking-wider"
+                                >
+                                    {copiedIndex === previewIndex ? <CheckCircle size={16} className="text-emerald-500" /> : <Copy size={16} />}
+                                    {copiedIndex === previewIndex ? 'COPIED' : 'COPY ALL'}
+                                </Button>
+                                <Button 
+                                    variant="primary"
+                                    disabled={sendingStatus[previewIndex]}
+                                    onClick={async () => {
+                                        await handleSendEmail(previewIndex);
+                                        setPreviewIndex(null);
+                                    }}
+                                    className="h-12 px-8 text-xs font-semibold uppercase tracking-wider rounded-xl gap-2 shadow-lg shadow-primary/20"
+                                >
+                                    {sendingStatus[previewIndex] ? (
+                                        <><Loader2 className="animate-spin" size={16} /> PROCESSING...</>
+                                    ) : (
+                                        <><Send size={16} /> SEND MAIL</>
+                                    )}
+                                </Button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };

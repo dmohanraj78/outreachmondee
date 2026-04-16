@@ -7,7 +7,6 @@ import {
   Search, 
   MessageSquare,
   ArrowRight,
-  Activity,
   HeartPulse,
   ShieldCheck,
   Globe
@@ -68,10 +67,9 @@ const Dashboard = () => {
   }, []);
 
   const handleRunDiscovery = async () => {
-    startProcess("Universal Discovery Swarm", "Initializing cross-platform intelligence scan. We are currently searching for verified corporate identities across multiple cloud nodes.");
+    startProcess("Universal Discovery Swarm", "Initializing cross-platform intelligence scan.");
     try {
       await axios.post(N8N_CONFIG.FINDER_WEBHOOK);
-      // Give it a small delay for sheet sync before completion
       setTimeout(() => {
         completeProcess();
         fetchDashboardData();
@@ -81,50 +79,66 @@ const Dashboard = () => {
     }
   };
 
-  const MetricCard = ({ icon: Icon, label, value, description, delay }) => (
+  const Skeleton = ({ className }) => (
+    <div className={cn("skeleton", className)} />
+  );
+
+  const MetricCard = ({ icon: Icon, label, value, description, accent = false, delay }) => (
     <motion.div
-      initial={{ opacity: 0, y: 5 }}
+      initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay }}
-      className="h-full"
+      transition={{ delay, duration: 0.3 }}
     >
-      <Card className="h-full border-slate-100 shadow-sm hover:shadow-md transition-shadow duration-300 bg-white">
-        <CardContent className="p-6 flex flex-col justify-between h-full">
-          <div className="flex items-center justify-between">
+      <Card className={cn(
+        "h-full",
+        accent && "border-primary/20 bg-gradient-to-br from-primary/[0.02] to-transparent"
+      )}>
+        <CardContent className="p-5">
+          <div className="flex items-start justify-between">
             <div className="space-y-1">
-              <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">{label}</p>
-              <h3 className="text-2xl font-bold text-slate-900 tracking-tight">{value}</h3>
+              <p className="text-xs font-medium text-slate-500">{label}</p>
+              {loading ? (
+                <Skeleton className="h-7 w-16 mt-1" />
+              ) : (
+                <h3 className="text-2xl font-bold text-slate-900 tabular-nums">{value}</h3>
+              )}
             </div>
-            <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400">
-              <Icon size={18} />
+            <div className={cn(
+              "w-9 h-9 rounded-lg flex items-center justify-center",
+              accent ? "bg-primary/10 text-primary" : "bg-slate-100 text-slate-400"
+            )}>
+              <Icon size={17} />
             </div>
           </div>
-          <p className="mt-4 text-[11px] text-slate-400 font-medium">
-             {description}
-          </p>
+          <p className="mt-3 text-[11px] text-slate-400">{description}</p>
         </CardContent>
       </Card>
     </motion.div>
   );
 
   return (
-    <div className="space-y-10">
-      <header className="flex flex-col gap-1">
-        <div className="flex items-center gap-2 mb-2">
-          <Badge variant="secondary" className="bg-emerald-50 text-emerald-600 text-[10px] px-2 py-0.5 font-semibold">System Optimal</Badge>
-          <span className="text-slate-200">|</span>
-          <span className="text-[10px] text-slate-400 font-medium uppercase tracking-widest">v2.0.26 Production</span>
+    <div className="space-y-8">
+      {/* Header */}
+      <header className="space-y-1">
+        <div className="flex items-center gap-2 mb-1">
+          <Badge variant="success" className="text-[10px] px-2">System Online</Badge>
         </div>
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900 leading-none">
-          Command <span className="text-primary/70 font-medium">Center</span>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+          Command Center
         </h1>
-        <p className="text-base text-slate-500 max-w-2xl font-normal leading-relaxed">
-          Operational overview: <span className="text-slate-900 font-semibold">{stats.leads} total leads</span> identified across <span className="text-slate-900 font-semibold">{stats.queries} active nodes</span>.
+        <p className="text-sm text-slate-500 max-w-lg">
+          {loading ? (
+            <Skeleton className="h-4 w-64" />
+          ) : (
+            <>
+              <span className="text-slate-700 font-medium">{stats.leads} leads</span> identified across <span className="text-slate-700 font-medium">{stats.queries} nodes</span>.
+            </>
+          )}
         </p>
       </header>
 
-      {/* Metrics Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* Metrics */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard 
           icon={Search} 
           label="Discovery Nodes" 
@@ -137,6 +151,7 @@ const Dashboard = () => {
           label="Total Database" 
           value={stats.leads} 
           description="Verified corporate leads"
+          accent
           delay={0.05}
         />
         <MetricCard 
@@ -155,54 +170,63 @@ const Dashboard = () => {
         />
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-10">
-        {/* Recent Lead Discoveries */}
-        <Card className="xl:col-span-2 border-slate-100 overflow-hidden shadow-sm bg-white">
-          <CardHeader className="flex flex-row items-center justify-between border-b border-slate-50 bg-slate-50/30 p-8">
-            <div className="space-y-1">
-              <CardTitle className="text-xl font-semibold flex items-center gap-2">
-                <TrendingUp className="text-primary/50" size={20} />
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        {/* Recent Leads */}
+        <Card className="xl:col-span-2">
+          <CardHeader className="flex flex-row items-center justify-between border-b border-slate-100 p-5">
+            <div className="space-y-0.5">
+              <CardTitle className="text-base flex items-center gap-2">
+                <TrendingUp className="text-slate-400" size={16} />
                 Recent Intelligence
               </CardTitle>
-              <p className="text-sm text-slate-500 font-normal">Latest corporate leads identified by discovery swarm.</p>
+              <CardDescription className="text-xs">Latest leads from discovery swarm</CardDescription>
             </div>
-            <Button variant="outline" size="sm" className="rounded-full px-6 font-semibold text-[10px] uppercase tracking-widest bg-white border-slate-200">
-              View Database
+            <Button variant="outline" size="sm" className="text-xs">
+              View All
             </Button>
           </CardHeader>
           <CardContent className="p-0">
             <Table>
               <TableHeader>
-                <TableRow className="bg-slate-50/50">
-                  <TableHead className="pl-8">Recipient</TableHead>
+                <TableRow>
+                  <TableHead className="pl-5">Recipient</TableHead>
                   <TableHead>Organization</TableHead>
-                  <TableHead>Verification</TableHead>
-                  <TableHead className="text-right pr-8">Actions</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right pr-5">Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {recentLeads.length === 0 && !loading ? (
+                {loading ? (
+                  Array.from({ length: 4 }).map((_, i) => (
+                    <TableRow key={i}>
+                      <TableCell className="pl-5"><Skeleton className="h-4 w-32" /></TableCell>
+                      <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                      <TableCell><Skeleton className="h-5 w-16" /></TableCell>
+                      <TableCell className="text-right pr-5"><Skeleton className="h-4 w-8 ml-auto" /></TableCell>
+                    </TableRow>
+                  ))
+                ) : recentLeads.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="h-48 text-center text-slate-400 font-medium">
-                      Swarm is currently idle. No new leads found.
+                    <TableCell colSpan={4} className="h-32 text-center text-slate-400 text-sm">
+                      No leads found yet. Run a discovery scan to get started.
                     </TableCell>
                   </TableRow>
                 ) : recentLeads.map((lead, i) => (
-                  <TableRow key={i} className="group hover:bg-slate-50/30 transition-colors">
-                    <TableCell className="pl-8 py-5">
+                  <TableRow key={i} className="group">
+                    <TableCell className="pl-5">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center text-primary font-semibold text-xs group-hover:bg-primary group-hover:text-white transition-all">
+                        <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-xs font-semibold text-slate-500 group-hover:bg-primary group-hover:text-white transition-colors">
                           {(lead.name || lead.Name || "?")[0]}
                         </div>
-                        <div className="font-semibold text-slate-900 group-hover:text-primary transition-colors text-sm">{lead.name || lead.Name}</div>
+                        <span className="font-medium text-slate-900 text-sm">{lead.name || lead.Name}</span>
                       </div>
                     </TableCell>
-                    <TableCell className="text-slate-500 font-normal text-sm">{lead.company || lead.Company}</TableCell>
+                    <TableCell className="text-slate-500 text-sm">{lead.company || lead.Company}</TableCell>
                     <TableCell>
-                      <Badge variant="success" className="bg-emerald-50 text-emerald-600 border-emerald-100/50 px-3 font-semibold text-[10px]">Verified</Badge>
+                      <Badge variant="success" className="text-[10px]">Verified</Badge>
                     </TableCell>
-                    <TableCell className="text-right pr-8">
-                      <Button variant="ghost" size="icon" className="text-slate-300 hover:text-primary hover:bg-slate-50 h-8 w-8">
+                    <TableCell className="text-right pr-5">
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-300 hover:text-primary">
                         <ArrowRight size={14} />
                       </Button>
                     </TableCell>
@@ -213,49 +237,54 @@ const Dashboard = () => {
           </CardContent>
         </Card>
 
-        {/* System Health & Quick Intelligence */}
-        <div className="space-y-6">
-           <Card className="border-slate-100 bg-white shadow-sm">
-             <CardHeader className="p-6 pb-4">
-               <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                 <HeartPulse className="text-emerald-500" size={18} />
-                 Agent Health
-               </CardTitle>
-             </CardHeader>
-             <CardContent className="p-6 pt-0 space-y-5">
-               {[
-                 { label: 'Cloud Synchronizer', status: 'Online', icon: Globe },
-                 { label: 'Security Firewall', status: 'Protected', icon: ShieldCheck },
-                 { label: 'n8n Engine Core', status: 'Optimal', icon: Zap }
-               ].map((item, i) => (
-                 <div key={i} className="flex items-center justify-between group">
-                   <div className="flex items-center gap-3">
-                     <item.icon size={15} className="text-slate-300 group-hover:text-primary transition-colors" />
-                     <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">{item.label}</span>
-                   </div>
-                   <Badge variant="secondary" className="bg-slate-50 hover:bg-slate-100 text-[9px] font-semibold">{item.status}</Badge>
-                 </div>
-               ))}
-             </CardContent>
-           </Card>
+        {/* Right column */}
+        <div className="space-y-4">
+          {/* Agent Health */}
+          <Card>
+            <CardHeader className="p-5 pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <HeartPulse className="text-emerald-500" size={16} />
+                Agent Health
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-5 pt-0 space-y-4">
+              {[
+                { label: 'Cloud Sync', status: 'Online', icon: Globe, color: 'bg-emerald-500' },
+                { label: 'Security', status: 'Protected', icon: ShieldCheck, color: 'bg-emerald-500' },
+                { label: 'n8n Engine', status: 'Optimal', icon: Zap, color: 'bg-emerald-500' }
+              ].map((item, i) => (
+                <div key={i} className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <item.icon size={14} className="text-slate-400" />
+                    <span className="text-sm text-slate-600 font-medium">{item.label}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className={cn("w-1.5 h-1.5 rounded-full", item.color)} />
+                    <span className="text-xs text-slate-500">{item.status}</span>
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
 
-           <Card className="bg-primary text-white border-none shadow-xl shadow-primary/20 overflow-hidden relative group">
-             <div className="absolute top-0 right-0 w-32 h-32 -mr-16 -mt-16 bg-white/10 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700 pointer-events-none" />
-             <CardHeader className="relative z-10 p-6">
-               <CardTitle className="text-white text-xl font-bold tracking-tight">Intelligence Swarm</CardTitle>
-               <p className="text-white/60 text-xs font-normal mt-1 leading-relaxed">Execute a fresh cross-platform deep-discovery scan.</p>
-             </CardHeader>
-             <CardContent className="relative z-10 p-6 pt-0">
-               <Button 
-                 variant="accent" 
-                 onClick={handleRunDiscovery}
-                 className="w-full h-12 text-xs font-semibold uppercase tracking-wider shadow-lg shadow-accent/20 group/btn"
-               >
-                 Run Discovery Now
-                 <ArrowRight size={16} className="ml-2 group-hover/btn:translate-x-1 transition-transform" />
-               </Button>
-             </CardContent>
-           </Card>
+          {/* Discovery CTA */}
+          <Card className="bg-[#4F001D] text-white border-none overflow-hidden relative">
+            <div className="absolute top-0 right-0 w-40 h-40 -mr-20 -mt-20 bg-white/5 rounded-full blur-2xl pointer-events-none" />
+            <CardHeader className="relative z-10 p-5 pb-2">
+              <CardTitle className="text-white text-base font-semibold">Intelligence Swarm</CardTitle>
+              <p className="text-white/50 text-xs mt-1">Execute a cross-platform discovery scan.</p>
+            </CardHeader>
+            <CardContent className="relative z-10 p-5 pt-3">
+              <Button 
+                variant="accent" 
+                onClick={handleRunDiscovery}
+                className="w-full h-10 text-xs font-semibold gap-2"
+              >
+                Run Discovery
+                <ArrowRight size={14} />
+              </Button>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

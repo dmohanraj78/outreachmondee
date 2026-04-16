@@ -1,152 +1,182 @@
 import React, { useState, useEffect } from 'react';
-import { Save, Link as LinkIcon, RefreshCw, LayoutTemplate, Monitor, ExternalLink, Globe, ShieldCheck } from 'lucide-react';
+import { RefreshCw, ExternalLink, ArrowRight, Mail, Globe, ShieldCheck, Table as TableIcon } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { motion, AnimatePresence } from 'framer-motion';
+import axios from 'axios';
+import { N8N_CONFIG } from '../config';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/Card';
 import { Button } from './ui/Button';
 import { Badge } from './ui/Badge';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/Table';
 import { cn } from '../lib/utils';
+import EmptyState from './EmptyState';
 
 const LeadCapture = () => {
-    const [formUrl, setFormUrl] = useState(() => {
-        return localStorage.getItem('miraee_capture_url') || '';
-    });
-    
-    const [inputUrl, setInputUrl] = useState(formUrl);
+    const [loading, setLoading] = useState(false);
+    const [leads, setLeads] = useState([]);
+    const [isRefreshing, setIsRefreshing] = useState(false);
 
-    const saveUrlConfig = (e) => {
-        e.preventDefault();
-        let finalUrl = inputUrl.trim();
-        if (finalUrl && !finalUrl.startsWith('http')) {
-            finalUrl = 'https://' + finalUrl;
+    const fetchLeads = async (silent = false) => {
+        if (!silent) setLoading(true);
+        else setIsRefreshing(true);
+        try {
+            const response = await axios.get(N8N_CONFIG.GET_CAPTURE_FORM_WEBHOOK);
+            const data = Array.isArray(response.data) ? response.data : [];
+            setLeads(data.reverse());
+        } catch (error) {
+            console.error("Failed to fetch leads", error);
+            toast.error("Could not sync with database.");
+        } finally {
+            setLoading(false);
+            setIsRefreshing(false);
         }
-
-        setFormUrl(finalUrl);
-        setInputUrl(finalUrl);
-        localStorage.setItem('miraee_capture_url', finalUrl);
-        toast.success("Operational Sync: Global capture endpoint locked.");
     };
 
+    useEffect(() => { fetchLeads(); }, []);
+
+    const getLeadValue = (lead, keys) => {
+        for (const key of keys) {
+            if (lead[key]) return lead[key];
+            if (lead[key.toLowerCase()]) return lead[key.toLowerCase()];
+            if (lead[key.toUpperCase()]) return lead[key.toUpperCase()];
+        }
+        return '';
+    };
+
+    const getLeadName = (lead) => getLeadValue(lead, ['name', 'Name', 'fullName', 'Lead Name']) || 'Anonymous';
+    const getLeadEmail = (lead) => getLeadValue(lead, ['email', 'Email', 'email_address']) || 'No Email';
+    const getLeadCompany = (lead) => getLeadValue(lead, ['company', 'Company', 'organization', 'Organization']) || 'N/A';
+    const getLeadRole = (lead) => getLeadValue(lead, ['role', 'Role', 'date', 'Position', 'Title']) || 'Executive';
+    const getLeadLinkedin = (lead) => getLeadValue(lead, ['linkedin', 'LinkedIn', 'linkedin_url', 'LinkedIn Profile']);
+
     return (
-        <div className="flex flex-col space-y-10">
-            <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 shrink-0">
+        <div className="space-y-8">
+            <header className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
                 <div className="space-y-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Badge variant="outline" className="text-[10px] py-1 uppercase font-semibold text-slate-400 border-slate-200">LIVE VIEWPORT</Badge>
-                      <span className="text-slate-200">|</span>
-                      <span className="text-[10px] text-slate-400 font-medium uppercase tracking-widest">Operational Sync</span>
-                    </div>
-                    <h1 className="text-3xl font-bold tracking-tight text-slate-900">
-                        Lead <span className="text-accent/70 font-medium">Capture</span>
-                    </h1>
-                    <p className="text-base text-slate-500 max-w-2xl font-normal leading-relaxed">
-                        Interface for synchronizing and monitoring external acquisition endpoints within the environment.
+                    <h1 className="text-2xl font-bold tracking-tight text-slate-900">Captured Leads</h1>
+                    <p className="text-sm text-slate-500 max-w-lg">
+                        Leads gathered via RB2B tracking, intent signals, and automated search.
                     </p>
                 </div>
+                <Button variant="outline" size="sm" onClick={() => fetchLeads(true)} disabled={isRefreshing} className="h-9 text-xs gap-1.5">
+                    <RefreshCw className={cn("h-3.5 w-3.5", isRefreshing && "animate-spin")} />
+                    {isRefreshing ? "Syncing..." : "Refresh"}
+                </Button>
             </header>
 
-            {/* Viewport Control Terminal */}
-            <Card className="border-slate-100 shadow-sm shrink-0 overflow-hidden bg-white">
-                <form onSubmit={saveUrlConfig} className="p-8 flex flex-col lg:flex-row gap-6 items-center bg-slate-50/30">
-                    <div className="flex items-center gap-4 flex-1 w-full bg-white border border-slate-200 rounded-2xl px-6 h-14 group hover:border-accent/30 focus-within:border-accent/50 transition-all shadow-sm">
-                        <Globe size={18} className="text-slate-300 group-hover:text-accent transition-colors" />
-                        <input 
-                            type="text" 
-                            placeholder="Connect external form URL (e.g., Typeform, Tally, Custom)..." 
-                            value={inputUrl}
-                            onChange={(e) => setInputUrl(e.target.value)}
-                            className="bg-transparent border-none p-0 text-sm font-semibold text-slate-900 flex-1 focus:ring-0 placeholder:text-slate-300"
-                        />
+            {/* Main Table */}
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between border-b border-slate-100 p-5">
+                    <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center text-slate-400">
+                            <TableIcon size={16} />
+                        </div>
+                        <div className="space-y-0.5">
+                            <CardTitle className="text-base">Intelligence Database</CardTitle>
+                            <CardDescription className="text-xs">{leads.length} records found</CardDescription>
+                        </div>
                     </div>
-                    
-                    <div className="flex gap-4 w-full lg:w-auto">
-                        <Button 
-                            type="submit" 
-                            variant="accent" 
-                            disabled={inputUrl === formUrl}
-                            className="h-14 px-8 font-semibold tracking-wide text-xs uppercase gap-3 shadow-lg shadow-accent/20 flex-1 lg:flex-none"
-                        >
-                            <Save size={16} /> Initialize Endpoint
-                        </Button>
-                        
-                        <Button 
-                            type="button" 
-                            variant="outline"
-                            onClick={() => {
-                                const currentUrl = formUrl;
-                                setFormUrl('');
-                                setTimeout(() => setFormUrl(currentUrl), 100);
-                            }} 
-                            className="h-14 w-14 p-0 rounded-2xl border-slate-200 bg-white hover:bg-slate-50 flex-shrink-0"
-                            title="Reset Terminal Connection"
-                        >
-                            <RefreshCw size={20} className="text-slate-400" />
-                        </Button>
-                    </div>
-                </form>
+                    <Badge variant="secondary" className="text-[10px]">{leads.length} Records</Badge>
+                </CardHeader>
+                <CardContent className="p-0">
+                    {loading ? (
+                        <div className="flex flex-col items-center justify-center py-20 space-y-3">
+                            <div className="w-8 h-8 border-2 border-slate-200 border-t-primary rounded-full animate-spin" />
+                            <p className="text-xs text-slate-400">Loading...</p>
+                        </div>
+                    ) : leads.length === 0 ? (
+                        <EmptyState icon={TableIcon} title="No Leads Captured" message="Leads will appear here from RB2B tracking and search queries." />
+                    ) : (
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead className="pl-5">Lead</TableHead>
+                                    <TableHead>Organization</TableHead>
+                                    <TableHead>Source</TableHead>
+                                    <TableHead className="text-right pr-5">Actions</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {leads.map((lead, i) => {
+                                    const name = getLeadName(lead);
+                                    const email = getLeadEmail(lead);
+                                    const company = getLeadCompany(lead);
+                                    const role = getLeadRole(lead);
+                                    const linkedin = getLeadLinkedin(lead);
+
+                                    return (
+                                        <TableRow key={i} className="group">
+                                            <TableCell className="pl-5">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-xs font-semibold text-slate-500 group-hover:bg-primary group-hover:text-white transition-colors">
+                                                        {name[0].toUpperCase()}
+                                                    </div>
+                                                    <div>
+                                                        <div className="font-medium text-slate-900 text-sm">{name}</div>
+                                                        <div className="text-[11px] text-slate-400 flex items-center gap-1">
+                                                            <Mail size={9} /> {email}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>
+                                                <div className="text-sm text-slate-700">{company}</div>
+                                                <div className="text-[11px] text-slate-400">{role}</div>
+                                            </TableCell>
+                                            <TableCell>
+                                                <Badge variant={
+                                                    (lead.source || '').toLowerCase().includes('rb2b') ? "default" : "outline"
+                                                } className="text-[10px]">
+                                                    {lead.source || "External"}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell className="text-right pr-5">
+                                                <div className="flex items-center justify-end gap-1">
+                                                    {linkedin && (
+                                                        <a href={linkedin} target="_blank" rel="noopener noreferrer">
+                                                            <Button variant="ghost" size="icon" className="w-8 h-8 text-slate-300 hover:text-primary">
+                                                                <ExternalLink size={14} />
+                                                            </Button>
+                                                        </a>
+                                                    )}
+                                                    <Button variant="ghost" size="icon" className="w-8 h-8 text-slate-300 hover:text-slate-600">
+                                                        <ArrowRight size={14} />
+                                                    </Button>
+                                                </div>
+                                            </TableCell>
+                                        </TableRow>
+                                    );
+                                })}
+                            </TableBody>
+                        </Table>
+                    )}
+                </CardContent>
             </Card>
 
-            {/* Embedded Viewport Wrapper */}
-            <motion.div 
-                layout
-                className={cn(
-                    "flex-1 min-h-[500px] overflow-hidden rounded-3xl border border-slate-100 transition-all duration-700 bg-white",
-                    !formUrl && "bg-slate-50 border-dashed border-slate-200 flex items-center justify-center p-20"
-                )}
-            >
-                <AnimatePresence mode="wait">
-                    {!formUrl ? (
-                        <motion.div 
-                            key="empty"
-                            initial={{ opacity: 0, scale: 0.98 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.98 }}
-                            className="flex flex-col items-center gap-8 text-center"
-                        >
-                            <div className="w-20 h-20 bg-white border border-slate-100 rounded-3xl flex items-center justify-center shadow-sm">
-                                <LayoutTemplate size={32} className="text-slate-200" />
-                            </div>
-                            <div className="space-y-2">
-                                <h2 className="text-2xl font-bold text-slate-300 tracking-tight uppercase">Terminal Decoupled</h2>
-                                <p className="text-sm font-semibold text-slate-300 max-w-sm uppercase tracking-widest leading-relaxed">Define a capture endpoint above to synchronize the live viewport.</p>
-                            </div>
-                        </motion.div>
-                    ) : (
-                        <motion.div 
-                            key="iframe"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            className="w-full h-full relative"
-                        >
-                           <div className="absolute top-6 left-6 z-10">
-                              <Badge variant="outline" className="bg-white/90 backdrop-blur-md border-slate-200 py-2 px-4 text-[10px] font-semibold tracking-wide gap-2 shadow-sm">
-                                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                 SECURE CONNECTION ACTIVE
-                              </Badge>
-                           </div>
-                           
-                           <div className="absolute top-6 right-6 z-10 flex gap-3">
-                                <a href={formUrl} target="_blank" rel="noopener noreferrer">
-                                   <Button variant="outline" size="icon" className="h-10 w-10 rounded-xl bg-white/90 backdrop-blur-md border-slate-200 shadow-sm hover:scale-105 transition-transform">
-                                       <ExternalLink size={16} className="text-slate-600" />
-                                   </Button>
-                                </a>
-                            </div>
-                            
-                            <div className="w-full h-full p-4 md:p-6 pt-20 md:pt-20">
-                               <div className="w-full h-full rounded-2xl border border-slate-100 overflow-hidden shadow-inner bg-slate-50 relative group">
-                                  <iframe 
-                                      src={formUrl} 
-                                      className="w-full h-full border-none bg-white transition-opacity duration-700"
-                                      title="Embedded Operational Endpoint"
-                                      sandbox="allow-same-origin allow-scripts allow-forms allow-popups"
-                                  />
-                               </div>
-                            </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-            </motion.div>
+            {/* Info cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Card className="p-5">
+                    <div className="flex gap-4 items-start">
+                        <div className="w-9 h-9 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-500 flex-shrink-0">
+                            <ShieldCheck size={16} />
+                        </div>
+                        <div>
+                            <h4 className="font-semibold text-slate-900 text-sm">Security</h4>
+                            <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">All data is validated and de-duplicated before ingestion.</p>
+                        </div>
+                    </div>
+                </Card>
+                <Card className="bg-[#4F001D] text-white border-none p-5">
+                    <div className="flex gap-4 items-start">
+                        <div className="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center text-white/70 flex-shrink-0">
+                            <Globe size={16} />
+                        </div>
+                        <div>
+                            <h4 className="font-semibold text-white text-sm">RB2B Tracking</h4>
+                            <p className="text-xs text-white/50 mt-0.5 leading-relaxed">Pixel active. Visitors auto-populate the database.</p>
+                        </div>
+                    </div>
+                </Card>
+            </div>
         </div>
     );
 };
