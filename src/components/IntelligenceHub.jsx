@@ -135,13 +135,16 @@ const IntelligenceHub = () => {
       const isReplied = String(item[repliedKey]).toUpperCase() === 'TRUE' || item[statusKey] === 'Reply Received';
       
       // Extremely robust meeting detection
-      const meetingCheck = (str) => String(str || "").toLowerCase().includes('meeting') || String(str || "").toLowerCase().includes('booked');
-      const hasMeetingDate = item[getProp(item, 'meeting_date')] || item.Meeting_Date || item['Scheduled Date'] || item.date;
-      const isMeeting = meetingCheck(item[statusKey]) || meetingCheck(item[aiTagKey]) || (isReplied && meetingCheck(item[aiTagKey])) || hasMeetingDate;
+      const meetingCheck = (str) => {
+        const s = String(str || "").toLowerCase();
+        return (s.includes('meeting') || s.includes('booked')) && !s.includes('requested');
+      };
+      const hasMeetingDate = item[getProp(item, 'meeting_date')] || item.Meeting_Date || item['Scheduled Date'];
+      const isMeeting = (meetingCheck(item[statusKey]) || !!hasMeetingDate) && item[statusKey] !== 'Meeting Requested';
 
       let finalStatus = item[statusKey] || "Idle";
       if (isMeeting) finalStatus = 'Meeting Scheduled';
-      else if (isReplied) finalStatus = 'Reply Received';
+      else if (isReplied || item[statusKey] === 'Meeting Requested') finalStatus = 'Reply Received';
       else if (isCompleted) finalStatus = 'Completed';
 
       return {
