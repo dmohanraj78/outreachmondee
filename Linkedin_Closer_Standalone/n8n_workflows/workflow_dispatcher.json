@@ -1,0 +1,86 @@
+{
+  "name": "Social Dispatcher",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "social-dispatch",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "webhook-dispatcher",
+      "name": "Webhook",
+      "webhookId": "social-dispatch-webhook"
+    },
+    {
+      "parameters": {
+        "sendTo": "dhanushmohanraj78@gmail.com",
+        "subject": "={{ $json.body.subject }}",
+        "message": "={{ $json.body.message }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        250,
+        0
+      ],
+      "id": "gmail-sender",
+      "name": "Gmail",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "5b2fYtWoLEnRYlSA",
+          "name": "Gmail account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"status\": \"success\",\n  \"message\": \"Social email dispatched successfully\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        500,
+        0
+      ],
+      "id": "webhook-responder",
+      "name": "Respond to Webhook"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Gmail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true
+}

@@ -1,0 +1,52 @@
+##
+## Verified Email Finder Architecture for Draw.io
+##
+#
+## Style definitions
+# style: shape=rectangle;rounded=1;whiteSpace=wrap;html=1;fillColor=%fill%;strokeColor=none;fontColor=%color%;fontStyle=1;fontSize=12;
+# label: <table border="0" style="width:100%;border-collapse:collapse;"><tr><td align="center" style="padding:8px;">%name%</td></tr><tr><td align="center" style="padding:4px;font-size:10px;opacity:0.8;font-weight:normal;">%type%</td></tr></table>
+# edgeStyle: orthogonaEdgeStyle;rounded=1;strokeColor=#BDC3C7;strokeWidth=2;
+# connect: {"from": "from", "to": "id"}
+# width: 180
+# height: 70
+# padding: 20
+# ignoreQuotes: true
+##
+## Node Data
+id,name,type,fill,color
+1,Webhook Trigger,Trigger,#FF9900,#FFFFFF
+2,Get Sheet Rows,Google Sheets,#2ECC71,#FFFFFF
+3,Edit Fields,Setup Node,#7F8C8D,#FFFFFF
+4,Refine Query,JS Logic,#34495E,#FFFFFF
+5,Serper Search,HTTP API (Articles),#3498DB,#FFFFFF
+6,Extract Links,JS Logic,#34495E,#FFFFFF
+7,Wait 2s,Delay,#7F8C8D,#FFFFFF
+8,Jina Scraper,HTTP API (Content),#3498DB,#FFFFFF
+9,AI Analysis,Gemini AI,#9B59B6,#FFFFFF
+10,Output Parser,JS Logic,#34495E,#FFFFFF
+11,Find Website,HTTP API (Domain),#3498DB,#FFFFFF
+12,Find LinkedIn,HTTP API (Profiles),#3498DB,#FFFFFF
+13,Merge & Clean,JS Logic,#34495E,#FFFFFF
+14,Hunter.io Finder,HTTP API (Email),#E67E22,#FFFFFF
+15,Email Check,Filter Node,#7F8C8D,#FFFFFF
+16,Append row,Google Sheets,#2ECC71,#FFFFFF
+17,Success Response,Webhook Finish,#FF9900,#FFFFFF
+##
+## Connection Data
+from,id
+1,2
+2,3
+3,4
+4,5
+5,6
+6,7
+7,8
+8,9
+9,10
+10,11
+11,12
+12,13
+13,14
+14,15
+15,16
+16,17

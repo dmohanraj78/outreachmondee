@@ -1,0 +1,90 @@
+{
+  "name": "Fetch Social Drafts",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "get-social-drafts",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-fetch",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "documentId": {
+          "__rl": true,
+          "value": "1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "LinkedIn Drafts",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "sheet-get",
+      "name": "Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.1,
+      "position": [
+        250,
+        0
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "RQHgqiU45PVMtr8V",
+          "name": "Mondee 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        500,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true
+}

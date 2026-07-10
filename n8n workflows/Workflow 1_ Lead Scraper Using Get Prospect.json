@@ -1,5 +1,5 @@
 {
-  "name": "lead generator using jina copy",
+  "name": "Workflow 1: Lead Scraper Using Get Prospect",
   "nodes": [
     {
       "parameters": {
@@ -63,7 +63,7 @@
         "messages": {
           "values": [
             {
-              "content": "=\"Act as a Proper SERP Query Generator analyse the {{ $json.final_query }} and generate a propery search query as multiple to search in google to find company names return as only validjson do not include code markdowns or instructions\n\nAvoid generating queries which relates to linkedin\n\nEverything should be Recent on this Current year 2026"
+              "content": "=Act as a SERP Query Generator. Analyze the input {{ $json.final_query }} and generate multiple optimized Google search queries to find company names related to that topic. Ensure all queries are text-based, natural-language search phrases (not operators like intitle: or site:), exclude any references to LinkedIn, and focus only on recent results from the year 2026. Each query should be a single-line search phrase optimized for discovering lists of companies, directories, rankings, or industry reports. Return only valid JSON in the format: {\"serp_queries\": [\"query1\",\"query2\",\"query3\",\"query4\",\"query5\"]} without any explanations or markdown."
             }
           ]
         },
@@ -75,18 +75,18 @@
       "typeVersion": 1,
       "position": [
         -608,
-        752
+        736
       ],
       "credentials": {
         "ollamaApi": {
-          "id": "FFPFwA8ZvFgxyIts",
-          "name": "Marketing"
+          "id": "XGazPUgShUXWj32e",
+          "name": "SERPNEW"
         }
       }
     },
     {
       "parameters": {
-        "jsCode": "// This node must come IMMEDIATELY AFTER your Query Architect (AI)\nlet raw = ($json.content || \"\").replace(/```json/g, \"\").replace(/```/g, \"\").trim();\n\ntry {\n  let data = JSON.parse(raw);\n  \n  // Support both 'search_queries' and 'queries' coming from the AI\n  let queries = data.search_queries || data.queries || (Array.isArray(data) ? data : []);\n  \n  if (queries.length === 0 && raw.length > 5) {\n      queries = [raw]; // Fallback to raw string if it's not a list\n  }\n\n  return queries.map(q => ({ json: { query: q } }));\n} catch (e) {\n  // If parsing fails, use the raw content as a single query\n  return [{ json: { query: $json.content } }];\n}\n"
+        "jsCode": "/**\n * UNIVERSAL SERP QUERY PARSER\n * Handles: Markdown blocks, embedded JSON, direct arrays, and fallback strings.\n */\n\n// 1. Get raw content from the AI node (handles different possible field names)\nlet raw = ($json.content || $json.text || $json.message || \"\").toString().trim();\n\nif (!raw) return []; // Handle empty input\n\n// 2. Pre-processing: Remove markdown code blocks (```json ... ```)\nraw = raw.replace(/```json/g, \"\").replace(/```/g, \"\").trim();\n\nlet data = null;\nlet queries = [];\n\ntry {\n  // 3. Attempt standard JSON parsing\n  data = JSON.parse(raw);\n} catch (e) {\n  // 4. Fallback: Try regex extraction if JSON is buried in text\n  const jsonMatch = raw.match(/\\{[\\s\\S]*\\}|\\[[\\s\\S]*\\]/);\n  if (jsonMatch) {\n    try {\n      data = JSON.parse(jsonMatch[0]);\n    } catch (innerE) {\n      console.log(\"Regex JSON extraction failed\");\n    }\n  }\n}\n\n// 5. Normalization: Extract queries from the parsed object\nif (data) {\n  // Support for: serp_queries, queries, search_queries\n  queries = data.serp_queries || data.queries || data.search_queries || [];\n  \n  // If the AI returned a direct array instead of an object\n  if (Array.isArray(data)) {\n    queries = data;\n  }\n  \n  // If it's an object but not a list (single result)\n  if (!Array.isArray(queries) && typeof queries === 'string') {\n    queries = [queries];\n  }\n}\n\n// 6. Last Resort: If parsing failed but we have text, treat the whole text as one query\nif (queries.length === 0 && raw.length > 5) {\n  // Clean up any remaining braces if it was a partial/broken JSON\n  queries = [raw.replace(/[{}'\"]/g, \"\").split('\\n')[0].trim()];\n}\n\n// 7. Output in n8n format: Each query becomes its own item for the Serper/Google node\nreturn queries\n  .filter(q => typeof q === 'string' && q.trim().length > 0)\n  .map(q => ({\n    json: {\n      query: q.trim()\n    }\n  }));\n"
       },
       "id": "d5e266ca-62ca-4edf-b0d9-1b36d7b7439a",
       "name": "Query Parser1",
@@ -106,13 +106,13 @@
           "parameters": [
             {
               "name": "X-API-KEY",
-              "value": "e62e6828cdb20926c1f270be6ea2cf97d1d3e97e"
+              "value": "9a87871e46f59599cfdb1adeb0d30c4d49ffb941"
             }
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ { \"q\": $json.query || $(\"Query Refiner1\").item.json.final_query, \"num\": 10 } }}",
+        "jsonBody": "={{ { \"q\": $json.query } }}",
         "options": {}
       },
       "id": "3d68f8ad-1859-48fe-aac5-a8d0b5d5de5d",
@@ -159,7 +159,7 @@
           "parameters": [
             {
               "name": "X-API-KEY",
-              "value": "e62e6828cdb20926c1f270be6ea2cf97d1d3e97e"
+              "value": "b8eb746185053af82c6827c00637450c20c2419f"
             }
           ]
         },
@@ -225,7 +225,7 @@
           "parameters": [
             {
               "name": "X-API-KEY",
-              "value": "e62e6828cdb20926c1f270be6ea2cf97d1d3e97e"
+              "value": "b8eb746185053af82c6827c00637450c20c2419f"
             }
           ]
         },
@@ -257,7 +257,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// THIS VERSION USES A LOOKUP MAP FOR 100% ACCURACY\nlet allLeads = [];\nconst allIncomingItems = $input.all();\n\n// 1. CREATE THE LOOKUP TABLE from Union Results\nconst unionItems = $(\"Union Results1\").all();\nconst websiteMap = {};\n\nfor (const item of unionItems) {\n  if (item.json.company && item.json.website) {\n    // We store the company name as the \"Key\" and website as the \"Value\"\n    websiteMap[item.json.company] = item.json.website;\n  }\n}\n\n// 2. PROCESS THE LINKEDIN RESULTS\nfor (const item of allIncomingItems) {\n  const results = item.json.organic || [];\n  const searchQuery = item.json.searchParameters?.q || \"\";\n  \n  // Get the exact company name we searched for\n  const companyName = searchQuery.split('\"')[1] || \"Unknown Company\";\n\n  // --- THE SMART MATCH ---\n  // We look up the website in our map using the company name\n  const website = websiteMap[companyName] || \"N/A\";\n  // ------------------------\n\n  for (const r of results) {\n    const title = r.title || \"\";\n    const titleParts = title.split(/[-|]/);\n    let fullName = titleParts[0].trim();\n    let role = titleParts.slice(1).join(\"-\").trim() || \"Founder / Executive\";\n    const names = fullName.split(\" \");\n    \n    allLeads.push({\n      json: {\n        company: companyName,\n        website: website, // PROPERLY MATCHED WEBSITE!\n        full_name: fullName,\n        first_name: names[0] || \"\",\n        last_name: names.slice(1).join(\" \") || \"\",\n        role: role,\n        linkedin: r.link,\n        snippet: r.snippet\n      }\n    });\n  }\n}\n\nreturn allLeads;\n"
+        "jsCode": "// THIS VERSION HANDLES INITIALS AND CLEANING FOR API COMPLIANCE\nlet allLeads = [];\nconst allIncomingItems = $input.all();\n\n// 1. CREATE THE LOOKUP TABLE from Union Results\nconst unionItems = $(\"Union Results1\").all();\nconst websiteMap = {};\n\nfor (const item of unionItems) {\n  if (item.json.company && item.json.website) {\n    websiteMap[item.json.company] = item.json.website;\n  }\n}\n\n// 2. PROCESS THE LINKEDIN RESULTS\nfor (const item of allIncomingItems) {\n  const results = item.json.organic || [];\n  const searchQuery = item.json.searchParameters?.q || \"\";\n  const companyName = searchQuery.split('\"')[1] || \"Unknown Company\";\n  const website = websiteMap[companyName] || \"N/A\";\n\n  for (const r of results) {\n    const title = r.title || \"\";\n    const titleParts = title.split(/[-|]/);\n    let fullName = titleParts[0].trim();\n    \n    // Split name and handle initials\n    const names = fullName.split(\" \");\n    const firstName = names[0] || \"\";\n    let lastName = names.slice(1).join(\" \").trim();\n\n    // Remove trailing periods from last names (e.g., \"John D.\" -> \"John D\")\n    lastName = lastName.replace(/\\.+$/, \"\");\n\n    allLeads.push({\n      json: {\n        company: companyName,\n        website: website,\n        full_name: fullName,\n        first_name: firstName,\n        last_name: lastName,\n        role: titleParts.slice(1).join(\"-\").trim() || \"Founder / Executive\",\n        linkedin: r.link,\n        snippet: r.snippet\n      }\n    });\n  }\n}\n\nreturn allLeads;\n"
       },
       "id": "3eb4bf1e-a5c4-4a26-8598-8394b5f81fde",
       "name": "Extract Name1",
@@ -270,7 +270,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// STABLE FILTER - WORKS FOR ALL 102 ITEMS\nreturn $input.all().filter(item => {\n  // Only keep leads that have a valid last name\n  return item.json.last_name && item.json.last_name.length > 1;\n});\n"
+        "jsCode": "// STABLE FILTER - ENSURES COMPLIANCE WITH FINDER APIS\nreturn $input.all().filter(item => {\n  // 1. Must have a last name\n  if (!item.json.last_name) return false;\n\n  // 2. Last name cannot be just a single letter or initial\n  // We strip away punctuation/spaces and check length\n  const cleanLastName = item.json.last_name.replace(/[^a-zA-Z]/g, \"\");\n  \n  // API requires at least 2 characters for a last name\n  return cleanLastName.length > 3;\n});\n"
       },
       "id": "7c40f306-bb82-4727-9bbb-697c19afc406",
       "name": "Filter Names (Fixed)1",
@@ -561,8 +561,8 @@
       "alwaysOutputData": false,
       "credentials": {
         "ollamaApi": {
-          "id": "XGazPUgShUXWj32e",
-          "name": "SERPNEW"
+          "id": "FFPFwA8ZvFgxyIts",
+          "name": "Marketing"
         }
       }
     },
@@ -754,7 +754,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const results = [];\n\nfor (const item of items) {\n  const data = item.json.data;\n\n  // Skip invalid or missing\n  if (!data || data.status !== \"valid\" || !data.email) continue;\n\n  results.push({\n    email: data.email,\n    status: data.status,\n    domain: data.domain,\n    free_email: data.free_email,\n    confidence: data.domain_status\n  });\n}\n\nreturn results.map(r => ({ json: r }));"
+        "jsCode": "/**\n * GETPROSPECT DATA PARSER\n * Flattens the nested JSON and handles fallbacks for missing names.\n */\n\n// 1. Map through all items in the array\nreturn items.map(item => {\n  const d = item.json.data || {};\n  const m = item.json.meta?.params || {};\n\n  // 2. Extract Names (Fallback to meta.params if data is null)\n  const firstName = d.first_name || m.first_name || \"\";\n  const lastName = d.last_name || m.last_name || \"\";\n  const fullName = `${firstName} ${lastName}`.trim();\n\n  // 3. Construct the clean flat object\n  return {\n    json: {\n      full_name: fullName,\n      first_name: firstName,\n      last_name: lastName,\n      email: d.email || \"N/A\",\n      position: d.position || \"N/A\",\n      company: d.company || \"N/A\",\n      domain: d.domain || m.domain || \"N/A\",\n      linkedin_url: d.linkedin_url || \"N/A\",\n      verification_status: d.verification?.status || \"none\",\n      confidence_score: d.score || 0,\n      is_valid: (d.verification?.status === \"valid\" || d.verification?.status === \"accept_all\")\n    }\n  };\n});\n"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -786,7 +786,7 @@
           "parameters": [
             {
               "name": "X-Api-Key",
-              "value": "fa36c6d2-6abf-4afe-a2a8-2e4f32d983dc"
+              "value": "578258a2-4ea4-4478-bb3d-1fe8b802d62d"
             },
             {
               "name": "Content-Type",
@@ -799,8 +799,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        3840,
-        592
+        3888,
+        272
       ],
       "id": "520e2439-7cf9-489a-85c6-389d913c8a43",
       "name": "HTTP Request"
@@ -817,9 +817,649 @@
       ],
       "id": "77bb4ac1-25c7-4c61-9796-57981dd144c4",
       "name": "Code in JavaScript5"
+    },
+    {
+      "parameters": {
+        "url": "https://api.hunter.io/v2/email-finder",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "domain",
+              "value": "={{ $json.website }}"
+            },
+            {
+              "name": "first_name",
+              "value": "={{ $json.first_name }}"
+            },
+            {
+              "name": "api_key",
+              "value": "c1263df88059c6f1d3d9161ad38597636e91441e"
+            },
+            {
+              "name": "last_name",
+              "value": "={{ $json.last_name }}"
+            }
+          ]
+        },
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 5
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        3840,
+        592
+      ],
+      "id": "bff1c263-998f-4888-a0ad-41b7153c978e",
+      "name": "HTTP Request5",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -1296,
+        896
+      ],
+      "id": "6529763e-ee9b-48fc-9037-f277e3137e78",
+      "name": "When clicking ‘Execute workflow’"
     }
   ],
-  "pinData": {},
+  "pinData": {
+    "Query Architect (AI)1": [
+      {
+        "json": {
+          "query": "top rated Dubai tour operators with active travel blogs 2026"
+        }
+      },
+      {
+        "json": {
+          "query": "best Dubai travel agencies publishing frequent holiday guides and updates 2026"
+        }
+      },
+      {
+        "json": {
+          "query": "list of leading Dubai tour providers with popular travel content 2026"
+        }
+      },
+      {
+        "json": {
+          "query": "most active Dubai excursion companies for local sightseeing reports 2026"
+        }
+      },
+      {
+        "json": {
+          "query": "directory of top performing Dubai tourism companies with official blogs 2026"
+        }
+      }
+    ],
+    "Query Parser1": [
+      {
+        "json": {
+          "query": "top rated Dubai tour operators with active travel blogs 2026"
+        }
+      },
+      {
+        "json": {
+          "query": "best Dubai travel agencies publishing frequent holiday guides and updates 2026"
+        }
+      },
+      {
+        "json": {
+          "query": "list of leading Dubai tour providers with popular travel content 2026"
+        }
+      },
+      {
+        "json": {
+          "query": "most active Dubai excursion companies for local sightseeing reports 2026"
+        }
+      },
+      {
+        "json": {
+          "query": "directory of top performing Dubai tourism companies with official blogs 2026"
+        }
+      }
+    ],
+    "Code in JavaScript4": [
+      {
+        "json": {
+          "company": "Travelstride",
+          "website": "travelstride.com",
+          "full_name": "Gavin Delany",
+          "first_name": "Gavin",
+          "last_name": "Delany",
+          "role": "Travelstride - LinkedIn",
+          "linkedin": "https://www.linkedin.com/in/gavindelany",
+          "snippet": "Founder & CEO of Travelstride, a platform focused on travel discovery and structured trip planning. Over the past decade, we've built one of the largest ...",
+          "match_key": "gavindelany_travelstride.com"
+        }
+      },
+      {
+        "json": {
+          "company": "Travelstride",
+          "website": "travelstride.com",
+          "full_name": "Christian Parent",
+          "first_name": "Christian",
+          "last_name": "Parent",
+          "role": "Product Leader - LinkedIn",
+          "linkedin": "https://www.linkedin.com/in/christian-parent",
+          "snippet": "Product Leader · Experience: Travelstride · Education: The University of ... Co Founder/CEO. GameChangers Interactive, Inc. 2016 - May 2017 1 year.",
+          "match_key": "christianparent_travelstride.com"
+        }
+      },
+      {
+        "json": {
+          "company": "Travelstride",
+          "website": "travelstride.com",
+          "full_name": "Morgan Stensrud",
+          "first_name": "Morgan",
+          "last_name": "Stensrud",
+          "role": "Head of Consumer Sales @ Travelstride - LinkedIn",
+          "linkedin": "https://ca.linkedin.com/in/morgan-stensrud-024b24110",
+          "snippet": "As a Global Travel Specialist at Travelstride, I connect travellers with exceptional tours and custom tour operators. I lead sales and customer engagement.",
+          "match_key": "morganstensrud_travelstride.com"
+        }
+      },
+      {
+        "json": {
+          "company": "Sky Vacations",
+          "website": "skyvacations.net",
+          "full_name": "Richard Krieger",
+          "first_name": "Richard",
+          "last_name": "Krieger",
+          "role": "Sky Vacations - LinkedIn",
+          "linkedin": "https://www.linkedin.com/in/richard-rkrieger",
+          "snippet": "Richard Krieger. Sky Vacations. New York, New York, United States. 4K followers 500+ connections.",
+          "match_key": "richardkrieger_skyvacations.net"
+        }
+      },
+      {
+        "json": {
+          "company": "Sky Vacations",
+          "website": "skyvacations.net",
+          "full_name": "MariCarmen Maricarmen",
+          "first_name": "MariCarmen",
+          "last_name": "Maricarmen",
+          "role": "Owner, Blue Sky Vacations - LinkedIn",
+          "linkedin": "https://www.linkedin.com/in/maricarmen-maricarmen-313b504",
+          "snippet": "Owner, Blue Sky Vacations · Experience: Blue Sky Vacations · Location: Oldsmar · 1 connection on LinkedIn. View MariCarmen Maricarmen's profile on LinkedIn, ...",
+          "match_key": "maricarmenmaricarmen_skyvacations.net"
+        }
+      },
+      {
+        "json": {
+          "company": "Sky Vacations",
+          "website": "skyvacations.net",
+          "full_name": "Aanya Shah",
+          "first_name": "Aanya",
+          "last_name": "Shah",
+          "role": "Sky Vacations - LinkedIn",
+          "linkedin": "https://www.linkedin.com/in/-aanyashah",
+          "snippet": "I am a graduate of New York University with a B.A. in Individualized Study from Gallatin.… · Experience: Sky Vacations · Education: New York University ...",
+          "match_key": "aanyashah_skyvacations.net"
+        }
+      },
+      {
+        "json": {
+          "company": "Globus",
+          "website": "globusjourneys.com",
+          "full_name": "Scott Nisbet",
+          "first_name": "Scott",
+          "last_name": "Nisbet",
+          "role": "CEO, Globus Family of Brands - LinkedIn",
+          "linkedin": "https://www.linkedin.com/in/scott-nisbet-b5ab7b7",
+          "snippet": "CEO, Globus Family of Brands · Experience: Globus Family of Brands · Education: Harvard · Location: Englewood · 500+ connections on LinkedIn.",
+          "match_key": "scottnisbet_globusjourneys.com"
+        }
+      },
+      {
+        "json": {
+          "company": "Globus",
+          "website": "globusjourneys.com",
+          "full_name": "Macellous T. M.",
+          "first_name": "Macellous",
+          "last_name": "T. M.",
+          "role": "Founder & Managing Director at GLOBUS ...",
+          "linkedin": "https://cm.linkedin.com/in/macellous-t-m-2605a613",
+          "snippet": "Founder & Managing Director at GLOBUS EDUCATION SYSTEMS · Macellous Mbameg is a Cameroonian International Business Development expert and founder of Globus ...",
+          "match_key": "macelloust.m._globusjourneys.com"
+        }
+      },
+      {
+        "json": {
+          "company": "Globus",
+          "website": "globusjourneys.com",
+          "full_name": "Kiran Dham",
+          "first_name": "Kiran",
+          "last_name": "Dham",
+          "role": "Managing Director & CEO at Globus Infocom Limited",
+          "linkedin": "https://in.linkedin.com/in/kiran-dham-b967a9156",
+          "snippet": "Managing Director & CEO at Globus Infocom Limited · With over 10 years of experience in driving successful business in the technology industry, ...",
+          "match_key": "kirandham_globusjourneys.com"
+        }
+      },
+      {
+        "json": {
+          "company": "Charlie The Traveler",
+          "website": "charliethetraveler.com",
+          "full_name": "Charles Stathoulis",
+          "first_name": "Charles",
+          "last_name": "Stathoulis",
+          "role": "Founder of CharlieTheTraveler - LinkedIn",
+          "linkedin": "https://www.linkedin.com/in/charliethetraveler",
+          "snippet": "Experience · Owner of CharlieTheTraveler · Founder · Author, Trip-Planner & Tour Guide · Founder. CharlieTheTraveler. Jan 2010 - Jan 2010 1 month. Los Angeles ...",
+          "match_key": "charlesstathoulis_charliethetraveler.com"
+        }
+      }
+    ],
+    "HTTP Request5": [
+      {
+        "json": {
+          "data": {
+            "first_name": "Gavin",
+            "last_name": "Delany",
+            "email": "gavin@travelstride.com",
+            "score": 96,
+            "domain": "travelstride.com",
+            "accept_all": false,
+            "position": "CEO",
+            "twitter": null,
+            "linkedin_url": "https://www.linkedin.com/in/gavindelany",
+            "phone_number": null,
+            "company": "Travelstride",
+            "sources": [
+              {
+                "domain": "linkedin.com",
+                "uri": "https://www.google.com/search?q=site:linkedin.com%20gavin%20delany%20travelstride",
+                "extracted_on": "2025-01-03",
+                "last_seen_on": "2026-04-07",
+                "still_on_page": true
+              }
+            ],
+            "verification": {
+              "date": "2026-04-13",
+              "status": "valid"
+            }
+          },
+          "meta": {
+            "params": {
+              "first_name": "Gavin",
+              "last_name": "Delany",
+              "full_name": null,
+              "domain": "travelstride.com",
+              "company": null,
+              "linkedin_handle": null,
+              "max_duration": null
+            }
+          }
+        }
+      },
+      {
+        "json": {
+          "data": {
+            "first_name": "Christian",
+            "last_name": "Parent",
+            "email": "christian@travelstride.com",
+            "score": 97,
+            "domain": "travelstride.com",
+            "accept_all": false,
+            "position": "Head of Product",
+            "twitter": null,
+            "linkedin_url": "https://www.linkedin.com/in/christian-parent",
+            "phone_number": null,
+            "company": "Travelstride",
+            "sources": [
+              {
+                "domain": "linkedin.com",
+                "uri": "https://www.google.com/search?q=site:linkedin.com%20christian%20parent%20travelstride",
+                "extracted_on": "2025-04-13",
+                "last_seen_on": "2026-04-02",
+                "still_on_page": true
+              }
+            ],
+            "verification": {
+              "date": "2026-04-13",
+              "status": "valid"
+            }
+          },
+          "meta": {
+            "params": {
+              "first_name": "Christian",
+              "last_name": "Parent",
+              "full_name": null,
+              "domain": "travelstride.com",
+              "company": null,
+              "linkedin_handle": null,
+              "max_duration": null
+            }
+          }
+        }
+      },
+      {
+        "json": {
+          "data": {
+            "first_name": "Morgan",
+            "last_name": "Stensrud",
+            "email": "morgan@travelstride.com",
+            "score": 98,
+            "domain": "travelstride.com",
+            "accept_all": false,
+            "position": null,
+            "twitter": null,
+            "linkedin_url": null,
+            "phone_number": null,
+            "company": "Travelstride",
+            "sources": [],
+            "verification": {
+              "date": "2026-04-18",
+              "status": "valid"
+            }
+          },
+          "meta": {
+            "params": {
+              "first_name": "Morgan",
+              "last_name": "Stensrud",
+              "full_name": null,
+              "domain": "travelstride.com",
+              "company": null,
+              "linkedin_handle": null,
+              "max_duration": null
+            }
+          }
+        }
+      },
+      {
+        "json": {
+          "data": {
+            "first_name": "Richard",
+            "last_name": "Krieger",
+            "email": "richard@skyvacations.net",
+            "score": 96,
+            "domain": "skyvacations.net",
+            "accept_all": true,
+            "position": null,
+            "twitter": null,
+            "linkedin_url": null,
+            "phone_number": null,
+            "company": "Sky Vacations",
+            "sources": [
+              {
+                "domain": "wtn.travel",
+                "uri": "https://wtn.travel/tag/usa-ny",
+                "extracted_on": "2025-07-15",
+                "last_seen_on": "2026-04-17",
+                "still_on_page": true
+              },
+              {
+                "domain": "wtn.travel",
+                "uri": "https://wtn.travel/groups/peace",
+                "extracted_on": "2025-12-03",
+                "last_seen_on": "2026-03-08",
+                "still_on_page": true
+              },
+              {
+                "domain": "wtn.travel",
+                "uri": "https://wtn.travel/groups/fashion",
+                "extracted_on": "2025-12-03",
+                "last_seen_on": "2026-03-04",
+                "still_on_page": true
+              },
+              {
+                "domain": "wtn.travel",
+                "uri": "https://wtn.travel/groups/equality",
+                "extracted_on": "2025-12-03",
+                "last_seen_on": "2026-03-03",
+                "still_on_page": true
+              },
+              {
+                "domain": "wtn.travel",
+                "uri": "https://wtn.travel/groups/safer",
+                "extracted_on": "2025-12-03",
+                "last_seen_on": "2026-03-03",
+                "still_on_page": true
+              }
+            ],
+            "verification": {
+              "date": "2026-04-18",
+              "status": "accept_all"
+            }
+          },
+          "meta": {
+            "params": {
+              "first_name": "Richard",
+              "last_name": "Krieger",
+              "full_name": null,
+              "domain": "skyvacations.net",
+              "company": null,
+              "linkedin_handle": null,
+              "max_duration": null
+            }
+          }
+        }
+      },
+      {
+        "json": {
+          "data": {
+            "first_name": "MariCarmen",
+            "last_name": "Maricarmen",
+            "email": "maricarmen@skyvacations.net",
+            "score": 91,
+            "domain": "skyvacations.net",
+            "accept_all": true,
+            "position": null,
+            "twitter": null,
+            "linkedin_url": null,
+            "phone_number": null,
+            "company": "Sky Vacations",
+            "sources": [],
+            "verification": {
+              "date": "2026-04-18",
+              "status": "accept_all"
+            }
+          },
+          "meta": {
+            "params": {
+              "first_name": "MariCarmen",
+              "last_name": "Maricarmen",
+              "full_name": null,
+              "domain": "skyvacations.net",
+              "company": null,
+              "linkedin_handle": null,
+              "max_duration": null
+            }
+          }
+        }
+      },
+      {
+        "json": {
+          "data": {
+            "first_name": "Aanya",
+            "last_name": "Shah",
+            "email": "aanya@skyvacations.net",
+            "score": 71,
+            "domain": "skyvacations.net",
+            "accept_all": true,
+            "position": null,
+            "twitter": null,
+            "linkedin_url": null,
+            "phone_number": null,
+            "company": "Sky Vacations",
+            "sources": [],
+            "verification": {
+              "date": "2026-04-18",
+              "status": "accept_all"
+            }
+          },
+          "meta": {
+            "params": {
+              "first_name": "Aanya",
+              "last_name": "Shah",
+              "full_name": null,
+              "domain": "skyvacations.net",
+              "company": null,
+              "linkedin_handle": null,
+              "max_duration": null
+            }
+          }
+        }
+      },
+      {
+        "json": {
+          "data": {
+            "first_name": null,
+            "last_name": null,
+            "email": null,
+            "score": null,
+            "domain": "globus.org",
+            "accept_all": null,
+            "position": null,
+            "twitter": null,
+            "linkedin_url": null,
+            "phone_number": null,
+            "company": null,
+            "sources": [],
+            "verification": {
+              "date": null,
+              "status": null
+            }
+          },
+          "meta": {
+            "params": {
+              "first_name": "Scott",
+              "last_name": "Nisbet",
+              "full_name": null,
+              "domain": "globus.org",
+              "company": null,
+              "linkedin_handle": null,
+              "max_duration": null
+            }
+          }
+        }
+      },
+      {
+        "json": {
+          "data": {
+            "first_name": null,
+            "last_name": null,
+            "email": null,
+            "score": null,
+            "domain": "globus.org",
+            "accept_all": null,
+            "position": null,
+            "twitter": null,
+            "linkedin_url": null,
+            "phone_number": null,
+            "company": null,
+            "sources": [],
+            "verification": {
+              "date": null,
+              "status": null
+            }
+          },
+          "meta": {
+            "params": {
+              "first_name": "Kiran",
+              "last_name": "Dham",
+              "full_name": null,
+              "domain": "globus.org",
+              "company": null,
+              "linkedin_handle": null,
+              "max_duration": null
+            }
+          }
+        }
+      },
+      {
+        "json": {
+          "data": {
+            "first_name": null,
+            "last_name": null,
+            "email": null,
+            "score": null,
+            "domain": "charliethetraveler.com",
+            "accept_all": null,
+            "position": null,
+            "twitter": null,
+            "linkedin_url": null,
+            "phone_number": null,
+            "company": null,
+            "sources": [],
+            "verification": {
+              "date": null,
+              "status": null
+            }
+          },
+          "meta": {
+            "params": {
+              "first_name": "Charles",
+              "last_name": "Stathoulis",
+              "full_name": null,
+              "domain": "charliethetraveler.com",
+              "company": null,
+              "linkedin_handle": null,
+              "max_duration": null
+            }
+          }
+        }
+      },
+      {
+        "json": {
+          "data": {
+            "first_name": "Christopher",
+            "last_name": "Goldring",
+            "email": "cgoldring@mahlatini.com",
+            "score": 98,
+            "domain": "mahlatini.com",
+            "accept_all": false,
+            "position": "Co-Founder",
+            "twitter": null,
+            "linkedin_url": "https://www.linkedin.com/in/christopher-goldring-5b79b762",
+            "phone_number": null,
+            "company": "Mahlatini Luxury Travel",
+            "sources": [
+              {
+                "domain": "mahlatini.com",
+                "uri": "https://mahlatini.com/us/meet-the-team/chris-goldring",
+                "extracted_on": "2024-08-23",
+                "last_seen_on": "2024-08-23",
+                "still_on_page": true
+              },
+              {
+                "domain": "mahlatini.com",
+                "uri": "https://mahlatini.com/meet-the-team/chris-goldring",
+                "extracted_on": "2024-05-19",
+                "last_seen_on": "2024-05-19",
+                "still_on_page": true
+              }
+            ],
+            "verification": {
+              "date": "2026-04-18",
+              "status": "valid"
+            }
+          },
+          "meta": {
+            "params": {
+              "first_name": "Christopher",
+              "last_name": "Goldring",
+              "full_name": null,
+              "domain": "mahlatini.com",
+              "company": null,
+              "linkedin_handle": null,
+              "max_duration": null
+            }
+          }
+        }
+      }
+    ]
+  },
   "connections": {
     "Jina AI Scraper (Free)": {
       "main": [
@@ -1112,7 +1752,7 @@
       "main": [
         [
           {
-            "node": "HTTP Request",
+            "node": "HTTP Request5",
             "type": "main",
             "index": 0
           }
@@ -1132,6 +1772,22 @@
     },
     "HTTP Request": {
       "main": [
+        []
+      ]
+    },
+    "Code in JavaScript5": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets Output1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request5": {
+      "main": [
         [
           {
             "node": "Code in JavaScript2",
@@ -1141,11 +1797,11 @@
         ]
       ]
     },
-    "Code in JavaScript5": {
+    "When clicking ‘Execute workflow’": {
       "main": [
         [
           {
-            "node": "Google Sheets Output1",
+            "node": "Unified Input Logic1",
             "type": "main",
             "index": 0
           }
@@ -1159,7 +1815,7 @@
     "binaryMode": "separate",
     "availableInMCP": false
   },
-  "versionId": "415f942a-709b-4443-b56f-02835e862e38",
+  "versionId": "a8361ac8-e3dc-42aa-a3ca-0b74e55471e0",
   "meta": {
     "instanceId": "48873ca0faf2834fcac348c85b5cfe8a77d198239fa094d25a95512e1a2e676b"
   },

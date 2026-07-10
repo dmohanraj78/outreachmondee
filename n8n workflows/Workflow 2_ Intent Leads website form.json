@@ -1,0 +1,433 @@
+{
+  "name": "Workflow 2: Intent Leads website form",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "intent-leads",
+        "options": {}
+      },
+      "id": "ef42d968-6545-480b-8d34-8db8deaaf09f",
+      "name": "Webhook: Intent Leads",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -6016,
+        160
+      ],
+      "webhookId": "05fd7838-8012-494a-8b4a-1e0579f09237"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $json.body || $json;\n\n// --- RB2B PAYLOAD MAPPING ---\n// RB2B usually sends data in a flattened or person/company nested structure\nconst personName = body.person_name || body.name || \"\";\nconst personEmail = body.person_email || body.email || \"\";\nconst personLinkedin = body.person_linkedin || body.linkedin_url || \"\";\nconst companyName = body.company_name || body.company || \"\";\nconst website = body.company_domain || body.domain || \"\";\n\n// Logic: If RB2B already gave us the person, we skip AI search\nconst needsDiscovery = !personLinkedin || !personName;\n\nreturn [{ \n  json: { \n    name: personName,\n    email: personEmail,\n    company: companyName,\n    domain: website,\n    linkedin_url: personLinkedin,\n    source: \"rb2b\",\n    needs_discovery: needsDiscovery,\n    Query: needsDiscovery ? `CEO ${companyName}` : \"\"\n  } \n}];"
+      },
+      "id": "8dc703af-fc05-40b1-9696-d0906892d566",
+      "name": "Mapping (RB2B)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5568,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "combineOperation": "and",
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.visit_url || $node[\"Webhook: Intent Leads\"].json.body.page }}",
+              "operator": "contains",
+              "rightValue": "pricing"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b3bb4cee-ba83-4c34-b9e8-febaf2f219c2",
+      "name": "IF: Pricing Page Filter",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -5792,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "combineOperation": "and",
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.needs_discovery }}",
+              "operator": "isTrue"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "f8d550c3-21ac-47a3-a33d-5edd331d73a5",
+      "name": "IF: Discovery Needed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -5344,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://google.serper.dev/search",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-KEY",
+              "value": "e62e6828cdb20926c1f270be6ea2cf97d1d3e97e"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"q\": $json.Query, \"num\": 1 } }}",
+        "options": {}
+      },
+      "id": "dc25fdfc-fcb4-4fed-bfe5-fd55df49b332",
+      "name": "Serper Discovery",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -5120,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://google.serper.dev/search",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-KEY",
+              "value": "e62e6828cdb20926c1f270be6ea2cf97d1d3e97e"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"q\": \"site:linkedin.com/in \\\"\" + $json.company + \"\\\" (CEO OR Founder OR Owner)\", \"num\": 3 } }}",
+        "options": {}
+      },
+      "id": "895a1e95-3f95-49b2-ab68-9ff5556ecf70",
+      "name": "Serper LinkedIn Search",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -4896,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "let allLeads = [];\nconst results = $json.organic || [];\nconst item = $node[\"Mapping (RB2B)\"].json;\n\n// If we already have the lead from RB2B, just pass it through\nif (!item.needs_discovery) {\n  return [{\n    json: {\n      name: item.name,\n      role: \"Identified Visitor\",\n      company: item.company,\n      domain: item.domain,\n      email: item.email,\n      linkedin_url: item.linkedin_url,\n      source: \"rb2b\",\n      timestamp: new Date().toISOString()\n    }\n  }];\n}\n\n// Otherwise, sanitize the AI-discovered leads\nfor (const r of results) {\n  const titleParts = r.title.split(/[-|]/);\n  let fullName = titleParts[0].trim();\n  const names = fullName.split(\" \");\n  \n  allLeads.push({\n    json: {\n      name: fullName,\n      role: titleParts.slice(1).join(\"-\").trim() || \"Founder / Executive\",\n      company: item.company,\n      domain: item.domain,\n      email: `${names[0]?.toLowerCase()}.${names.slice(1).join(\"\").toLowerCase()}@${item.domain}`.replace(/\\s/g, \"\"),\n      linkedin_url: r.link,\n      source: \"intent_search\",\n      timestamp: new Date().toISOString()\n    }\n  });\n}\nreturn allLeads;"
+      },
+      "id": "adcdbc50-9e2a-4bde-a98f-83d6d987c605",
+      "name": "Data Sanitization",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4672,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls",
+          "mode": "list",
+          "cachedResultName": "ICP",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 2032326005,
+          "mode": "list",
+          "cachedResultName": "Intent Website",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls/edit#gid=2032326005"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "name": "={{$json.name}}",
+            "role": "={{$json.role}}",
+            "company": "={{$json.company}}",
+            "email": "={{$json.email}}",
+            "linkedin": "={{$json.linkedin_url}}",
+            "company website": "={{$json.domain}}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "role",
+              "displayName": "role",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "company",
+              "displayName": "company",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "linkedin",
+              "displayName": "linkedin",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "company website",
+              "displayName": "company website",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "subject",
+              "displayName": "subject",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "email_body",
+              "displayName": "email_body",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "replied",
+              "displayName": "replied",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "drip status",
+              "displayName": "drip status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Connection note",
+              "displayName": "Connection note",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Connection request",
+              "displayName": "Connection request",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "82a2c372-0fab-4907-a61f-0800ce7ccf46",
+      "name": "Google Sheets: Append Row",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.1,
+      "position": [
+        -4448,
+        160
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "RQHgqiU45PVMtr8V",
+          "name": "Mondee 2"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook: Intent Leads": {
+      "main": [
+        [
+          {
+            "node": "IF: Pricing Page Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: Pricing Page Filter": {
+      "main": [
+        [
+          {
+            "node": "Mapping (RB2B)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mapping (RB2B)": {
+      "main": [
+        [
+          {
+            "node": "IF: Discovery Needed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: Discovery Needed?": {
+      "main": [
+        [
+          {
+            "node": "Serper Discovery",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Data Sanitization",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Serper Discovery": {
+      "main": [
+        [
+          {
+            "node": "Serper LinkedIn Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Serper LinkedIn Search": {
+      "main": [
+        [
+          {
+            "node": "Data Sanitization",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Data Sanitization": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets: Append Row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "84c151c2-5757-4141-bfab-fef7fcf85289",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "48873ca0faf2834fcac348c85b5cfe8a77d198239fa094d25a95512e1a2e676b"
+  },
+  "id": "3Drhbj5bYAXfk8tK",
+  "tags": []
+}

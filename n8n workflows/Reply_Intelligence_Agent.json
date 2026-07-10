@@ -1,0 +1,94 @@
+{
+  "name": "Reply Intelligence Agent (Ollama Dynamic)",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [{ "mode": "everyMinute" }]
+        },
+        "filters": { "read": false }
+      },
+      "id": "gmail-trigger",
+      "name": "Reply Listener",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1,
+      "position": [200, 520]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "documentId": { "__rl": true, "value": "1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls", "mode": "id" },
+        "sheetName": { "__rl": true, "value": "Verified Emails", "mode": "name" },
+        "filters": {
+          "conditions": [
+            {
+              "columnName": "Email",
+              "operation": "equal",
+              "value": "={{ $json.from.email }}"
+            }
+          ]
+        }
+      },
+      "id": "sheet-match",
+      "name": "Match Lead",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [420, 520]
+    },
+    {
+      "parameters": {
+        "modelId": { "__rl": true, "value": "llama3", "mode": "list" },
+        "messages": {
+          "values": [
+            {
+               "content": "=\"You are a Strategic Senior SDR for Miraee. Analyze this reply from {{ $node[\\\"Match Lead\\\"].json.name }} at {{ $node[\\\"Match Lead\\\"].json.company }}.\\n\\nREPLY CONTENT:\\n'{{ $node[\\\"Reply Listener\\\"].json.text }}'\\n\\nPREVIOUS CONTEXT (What we sent):\\n'{{ $node[\\\"Match Lead\\\"].json.Last_Sent_Content || 'Initial outreach' }}'\\n\\nSTRICT ANALYSIS GUIDELINES:\\n1. **Intent**: Detect [Demo Request, Price Inquiry, Wrong Person, Busy now, Referral, Objection, DNC].\\n2. **Sentiment**: [Curious, Neutral, Frustrated, Hot].\\n3. **Urgency**: Score 1-10 (10 = needs reply in 15 mins).\\n4. **Strategy**: Choose [Book Demo, Offer Resource, Ask for Referral, Value Reassurance, Stop].\\n5. **Drafting Policy**: If Strategy is 'Book Demo', you MUST naturally include the following booking link: https://calendly.com/dmohanraj-mondee. Keep the tone helpful, professional, and low-friction.\\n6. **Bespoke Response**: Create a tailored draft based on the detected Intent and Strategy.\\n\\nReturn JSON ONLY:\\n{\\n  \\\"intent\\\": \\\"...\\\",\\n  \\\"sentiment\\\": \\\"...\\\",\\n  \\\"urgency\\\": 0-10,\\n  \\\"strategy\\\": \\\"...\\\",\\n  \\\"rebuttal\\\": \\\"...\\\",\\n  \\\"is_qualified\\\": true/false,\\n  \\\"status_label\\\": \\\"...\\\"\\n}\""
+            }
+          ]
+        },
+        "options": { "format": "json" }
+      },
+      "id": "ai-intel",
+      "name": "AI Strategic Resolver",
+      "type": "@n8n/n8n-nodes-langchain.ollama",
+      "typeVersion": 1,
+      "position": [640, 520],
+      "credentials": {
+        "ollamaApi": {
+          "id": "YOUR_OLLAMA_ID",
+          "name": "Local Ollama"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": { "__rl": true, "value": "1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls", "mode": "id" },
+        "sheetName": { "__rl": true, "value": "Verified Emails", "mode": "name" },
+        "columnToMatchOn": "Email",
+        "valueToMatchOn": "={{ $node[\"Reply Listener\"].json.from.email }}",
+        "fields": {
+          "values": [
+            { "name": "Replied", "value": "TRUE" },
+            { "name": "Sequence_Status", "value": "={{ $json.status_label }}" },
+            { "name": "AI_Tag", "value": "={{ $json.intent }} | {{ $json.sentiment }}" },
+            { "name": "Draft_Body", "value": "={{ $json.rebuttal }}" },
+            { "name": "Lead_Priority", "value": "={{ $json.urgency >= 7 ? 'High' : 'Normal' }}" },
+            { "name": "Urgency_Score", "value": "={{ $json.urgency }}" },
+            { "name": "Sentiment", "value": "={{ $json.sentiment }}" }
+          ]
+        }
+      },
+      "id": "sheet-update",
+      "name": "Update Reply State",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [880, 520]
+    }
+  ],
+  "connections": {
+    "Reply Listener": { "main": [[{ "node": "Match Lead", "type": "main", "index": 0 }]] },
+    "Match Lead": { "main": [[{ "node": "AI Strategic Resolver", "type": "main", "index": 0 }]] },
+    "AI Strategic Resolver": { "main": [[{ "node": "Update Reply State", "type": "main", "index": 0 }]] }
+  },
+  "active": true
+}

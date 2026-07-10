@@ -1,0 +1,1621 @@
+{
+  "name": "Verfied Email Finder",
+  "nodes": [
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ba598919-b875-4325-beae-1ddb17e19c2a",
+              "name": "query",
+              "value": "={{ $json.Query }}",
+              "type": "string"
+            },
+            {
+              "id": "41fd8b3b-8dc0-474a-97b2-0fb1a7b933ce",
+              "name": "signal",
+              "value": "={{ $json.Signal }}",
+              "type": "string"
+            },
+            {
+              "id": "12c4c705-6287-4c93-a260-ba34819386f7",
+              "name": "Filter",
+              "value": "={{ $json.Filter }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        448,
+        920
+      ],
+      "id": "044d5a60-dab5-4fe4-b3b6-0ce5c09bea9e",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => {\n\n  let query = (item.json.Query || item.json.query || \"\").toLowerCase().trim();\n  let filter = (item.json.Filter || item.json.filter || \"\").toLowerCase().trim();\n\n  // 🚫 Skip empty queries\n  if (!query) {\n    return { json: { skip: true } };\n  }\n\n  // 🔥 Default filter (Targeting Mid-Range Companies)\n  let defaultFilter = 'india startup \"Series A\" OR \"Series B\" OR \"Series C\" OR \"growth stage\" OR \"fastest growing\" -enterprise -mnc -global -TCS -Infosys -Wipro -Reliance -Accenture';\n\n  // ✅ Combine query + filter\n  let finalQuery = filter \n    ? `${query} ${filter}` \n    : `${query} ${defaultFilter}`;\n\n  // 🇮🇳 Force India if missing\n  if (!finalQuery.includes(\"india\")) {\n    finalQuery += \" india mid-range startup\";\n  }\n\n  // 🚫 Remove generic queries\n  let badWords = [\"global\", \"enterprise\", \"MNC\", \"conglomerate\"];\n  if (badWords.some(word => query.includes(word))) {\n    return { json: { skip: true } };\n  }\n\n  return {\n    json: {\n      ...item.json,\n      final_query: finalQuery,\n      skip: false\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        920
+      ],
+      "id": "228d4c0b-962e-4de6-a561-05e9a36274ca",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://google.serper.dev/search",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-KEY",
+              "value": "9a87871e46f59599cfdb1adeb0d30c4d49ffb941"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "q",
+              "value": "={{ $json.final_query }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        896,
+        920
+      ],
+      "id": "5b0cae66-516a-409a-86d7-fcbecce99a58",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "jsCode": "let results = $json.organic;\n\nlet items = [];\n\nfor (let r of results) {\n\nitems.push({\njson:{\ntitle: r.title,\nsource_link: r.link,\nsnippet: r.snippet,\nsignal: $json.signal\n}\n});\n\n}\n\nreturn items;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        920
+      ],
+      "id": "549c849c-f4ac-4fcc-9a8a-6ed3f474be41",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://google.serper.dev/search",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-KEY",
+              "value": "5f839f8ed8eeaee8716eb2e597fb7f24aa4a1522"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n \"q\": \"{{$json.company}} official website\",\n \"num\": 1\n}",
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 5
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2592,
+        920
+      ],
+      "id": "6b271140-c3e6-4162-9a22-27f14a80185a",
+      "name": "HTTP Request1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://google.serper.dev/search",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-KEY",
+              "value": "5f839f8ed8eeaee8716eb2e597fb7f24aa4a1522"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n \"q\": \"site:linkedin.com/in {{$json.company_name}} {{$json.role}}\",\n \"num\": 5\n}",
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 5
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        3040,
+        848
+      ],
+      "id": "162a5a11-ee30-4ec7-88c2-bb1e0f5a8c66",
+      "name": "Linkedin Finder"
+    },
+    {
+      "parameters": {
+        "jsCode": "let roles = [\n\"Founder\",\n\"Co-Founder\",\n\"CEO\",\n\"Chief Business Officer\",\n\"Head of Client Partnerships\",\n\"Client Partner\",\n\"CTO\",\n\"VP Engineering\",\n\"Head of Product\",\n\"Head of Sales\",\n\"COO\",\n\"Managing Director\"\n];\n\nlet output = [];\n\nfor (let item of items) {\n\n  let result = item.json.organic?.[0];\n  let website = result?.link || \"\";\n\n  website = website\n    .replace(\"https://\",\"\")\n    .replace(\"http://\",\"\")\n    .replace(\"www.\",\"\")\n    .split(\"/\")[0];\n\n  let company = item.json.searchParameters.q\n    .replace(\" official website\",\"\")\n    .trim();\n\n  // For mid-range companies, Founders and C-level roles like CBO are highly reachable.\n  let role = roles[0]; \n\n  output.push({\n    json: {\n      company_name: company,\n      company_website: website,\n      role: role\n    }\n  });\n\n}\n\nreturn output;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2816,
+        920
+      ],
+      "id": "27b1359c-1f4e-40a2-98b3-d0b367a5ea30",
+      "name": "Code Node Company name and Website"
+    },
+    {
+      "parameters": {
+        "content": "Verified Email Finder\n\nStep 1 - Setting Query with Signal\n\nStep 2 -  Search for Blogs or articles with mentioning the companies relates to that signal\n\nStep 3 - After Getting the Source link the message model will read all the sources and analyse the blog and found potential lead company names\n\nStep 4 - finding Linkedin Pages of the founded companies Management persons \n\nStep 5 - With Use of hunter we will find the verified official company mail id of the respective persons \n\nStep 6 - it will stores the output a name, company, role, linkedin, email \n\n\n\n",
+        "height": 336,
+        "width": 576
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2656,
+        160
+      ],
+      "typeVersion": 1,
+      "id": "731f953e-b892-49e9-978a-7933949c13ff",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lead-finder",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        920
+      ],
+      "id": "351f40a1-5e2d-445e-a38b-5589f76c1b7d",
+      "name": "Webhook",
+      "webhookId": "3bb7181c-7897-4c18-bd9d-700f9a131adc"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1kxNTqcPPeutXEMLqKh4DmBk0yZEOY8cpupKTEhlX7-A",
+          "mode": "list",
+          "cachedResultName": "Marketing",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1kxNTqcPPeutXEMLqKh4DmBk0yZEOY8cpupKTEhlX7-A/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Email finder",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1kxNTqcPPeutXEMLqKh4DmBk0yZEOY8cpupKTEhlX7-A/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        224,
+        920
+      ],
+      "id": "84512436-9172-4ae0-a674-aee882aa7546",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "5UXIJ2FO1VLOtJZe",
+          "name": "Mondee"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls",
+          "mode": "list",
+          "cachedResultName": "ICP",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1759447022,
+          "mode": "list",
+          "cachedResultName": "Verified Emails",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls/edit#gid=1759447022"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        272,
+        2176
+      ],
+      "id": "07850a25-ce9b-4c9b-93d0-1b4bbf9d39bb",
+      "name": "Google Sheets",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "5UXIJ2FO1VLOtJZe",
+          "name": "Mondee"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        496,
+        2176
+      ],
+      "id": "c0f35fa5-818d-4eaf-abac-c542d014991b",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "path": "get-leads",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        48,
+        2176
+      ],
+      "id": "f783f9b5-29d9-4221-a9f4-b21d8eb71be3",
+      "name": "Webhook1",
+      "webhookId": "eb3e6c4e-c3bf-4857-87e2-0740f88f0f21"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1kxNTqcPPeutXEMLqKh4DmBk0yZEOY8cpupKTEhlX7-A",
+          "mode": "list",
+          "cachedResultName": "Marketing",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1kxNTqcPPeutXEMLqKh4DmBk0yZEOY8cpupKTEhlX7-A/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Email finder",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1kxNTqcPPeutXEMLqKh4DmBk0yZEOY8cpupKTEhlX7-A/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        240,
+        1792
+      ],
+      "id": "39ade748-534b-4a5f-82e4-575bf8af63ea",
+      "name": "Google Sheets1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "5UXIJ2FO1VLOtJZe",
+          "name": "Mondee"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        464,
+        1792
+      ],
+      "id": "e55c1f86-6002-4a33-b5ee-a8de99e5e309",
+      "name": "Respond to Webhook2"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "get-queries&signal",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        16,
+        1792
+      ],
+      "id": "f27fba36-feb5-4004-9e8c-c63a3e063772",
+      "name": "Webhook2",
+      "webhookId": "eb3e6c4e-c3bf-4857-87e2-0740f88f0f21"
+    },
+    {
+      "parameters": {
+        "path": "get-queries",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        64,
+        2000
+      ],
+      "id": "daea8e4f-4a28-44d0-92d6-5d36b531f58d",
+      "name": "Webhook: Get List",
+      "webhookId": "b23a4e1a-dd6e-4969-ae00-91ad8109725a"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "save-query",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        624
+      ],
+      "id": "3a179a2b-8ff6-44c5-ab0b-19dd359be232",
+      "name": "Webhook: Append New",
+      "webhookId": "79e67683-31d8-48b6-8ca8-1a48453c65e9"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1kxNTqcPPeutXEMLqKh4DmBk0yZEOY8cpupKTEhlX7-A",
+          "mode": "list",
+          "cachedResultName": "Marketing",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1kxNTqcPPeutXEMLqKh4DmBk0yZEOY8cpupKTEhlX7-A/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Email finder",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1kxNTqcPPeutXEMLqKh4DmBk0yZEOY8cpupKTEhlX7-A/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        288,
+        2000
+      ],
+      "id": "9d09950b-c671-46ce-8658-3fe05f5b795f",
+      "name": "Read Queries",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "5UXIJ2FO1VLOtJZe",
+          "name": "Mondee"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1kxNTqcPPeutXEMLqKh4DmBk0yZEOY8cpupKTEhlX7-A",
+          "mode": "list",
+          "cachedResultName": "Marketing",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1kxNTqcPPeutXEMLqKh4DmBk0yZEOY8cpupKTEhlX7-A/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Email finder",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1kxNTqcPPeutXEMLqKh4DmBk0yZEOY8cpupKTEhlX7-A/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Query": "={{ $json.body.Query }}",
+            "Signal": "={{ $json.body.Signal }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Query",
+              "displayName": "Query",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Signal",
+              "displayName": "Signal",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Filter",
+              "displayName": "Filter",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        224,
+        624
+      ],
+      "id": "df4d8ca2-bb06-4b3d-8dc5-a8ac3a12dbef",
+      "name": "Append Query",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "5UXIJ2FO1VLOtJZe",
+          "name": "Mondee"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        512,
+        2000
+      ],
+      "id": "55c6be40-6b6b-4011-adcd-c8bddd520c48",
+      "name": "Respond List"
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        448,
+        624
+      ],
+      "id": "2c5ee260-206d-4c5c-83b2-f50c54b76b42",
+      "name": "Respond Success"
+    },
+    {
+      "parameters": {
+        "jsCode": "let output = [];\n\nfor (let item of items) {\n\n  let results = item.json.organic || [];\n  let query = item.json.searchParameters?.q || \"\";\n\n  // 🔥 Extract company + role from query\n  let cleaned = query.replace(\"site:linkedin.com/in\", \"\").trim();\n\n  let words = cleaned.split(\" \");\n\n  let role = words.pop(); // last word = role (CBO, CEO etc)\n  let company = words.join(\" \").trim();\n\n  for (let r of results) {\n\n    let link = r.link || \"\";\n    if (!link.includes(\"linkedin.com/in/\")) continue;\n\n    let title = r.title || \"\";\n\n    // 🧠 Extract person name\n    let name = title.split(\"|\")[0].split(\"-\")[0].trim();\n\n    // 🧠 Extract role from title if available\n    let extractedRole = \"\";\n\n    if (title.includes(\"|\")) {\n      extractedRole = title.split(\"|\")[1].trim();\n    }\n\n    output.push({\n      json: {\n        company_name: company,              // ✅ cleaned\n        person_name: name,\n        role: extractedRole || role,        // ✅ fallback to query role\n        linkedin: link.split(\"?\")[0]\n      }\n    });\n\n  }\n}\n\nreturn output;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3264,
+        848
+      ],
+      "id": "e626e1a7-3afb-481b-9533-98ee7809a437",
+      "name": "Code in JavaScript4"
+    },
+    {
+      "parameters": {
+        "url": "https://api.hunter.io/v2/email-finder",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "domain",
+              "value": "={{ $json.company_website }}"
+            },
+            {
+              "name": "first_name",
+              "value": "={{ $json.first_name }}"
+            },
+            {
+              "name": "api_key",
+              "value": "092ff31599591d2603476c1612f61cb2e3cac4fc"
+            },
+            {
+              "name": "last_name",
+              "value": "={{ $json.last_name }}"
+            }
+          ]
+        },
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 5
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        4384,
+        848
+      ],
+      "id": "5f2c598d-66c5-42e0-9867-726cbe9273f3",
+      "name": "HTTP Request5"
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => {\n\n  let fullName = item.json.person_name || \"\";\n  let parts = fullName.trim().split(\" \");\n\n  let first_name = parts[0] || \"\";\n  let last_name = parts.slice(1).join(\" \") || \"\";\n\n  return {\n    json: {\n      ...item.json,\n      first_name,\n      last_name\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3712,
+        920
+      ],
+      "id": "fb946a12-4312-482c-b612-adf21a1abaaa",
+      "name": "Code in JavaScript11"
+    },
+    {
+      "parameters": {
+        "jsCode": "let output = [];\n\nfor (let item of items) {\n\n  let data = item.json.data || {};\n\n  let first = data.first_name || \"\";\n  let last = data.last_name || \"\";\n\n  let name = (first + \" \" + last).trim();\n\n  let role = data.position || \"\";\n  let company = data.company || \"\";\n  let email = data.email || \"\";\n  let linkedin = data.linkedin_url || \"\";\n  let website = data.domain ? \"https://\" + data.domain : \"\";\n\n  output.push({\n    json: {\n      name: name,\n      role: role,\n      company: company,\n      email: email,\n      linkedin: linkedin,\n      company_website: website\n    }\n  });\n\n}\n\nreturn output;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4608,
+        848
+      ],
+      "id": "2a15d10a-eb12-4966-bf0f-22db104b752b",
+      "name": "Code in JavaScript12"
+    },
+    {
+      "parameters": {
+        "maxItems": 10
+      },
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        4160,
+        920
+      ],
+      "id": "0cacdd28-024e-4606-ad52-41339876d8f8",
+      "name": "Limit1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "45df4213-b325-4c02-8058-106de1235a27",
+              "leftValue": "={{$json.email}}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        5056,
+        920
+      ],
+      "id": "86cbbaef-bab7-4bcd-9c64-19b4b1ab19ac",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls",
+          "mode": "list",
+          "cachedResultName": "ICP",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1759447022,
+          "mode": "list",
+          "cachedResultName": "Verified Emails",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls/edit#gid=1759447022"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "name": "={{ $json.name }}",
+            "email": "={{ $json.email }}",
+            "linkedin": "={{ $json.linkedin }}",
+            "company website": "={{ $json.company_website }}",
+            "company": "={{ $json.company }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "date",
+              "displayName": "date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "company",
+              "displayName": "company",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "linkedin",
+              "displayName": "linkedin",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "company website",
+              "displayName": "company website",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "subject",
+              "displayName": "subject",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "email_body",
+              "displayName": "email_body",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Sequence_Step",
+              "displayName": "Sequence_Step",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Last_Sent_Date",
+              "displayName": "Last_Sent_Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Replied",
+              "displayName": "Replied",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "AI_Tag",
+              "displayName": "AI_Tag",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Draft_Body",
+              "displayName": "Draft_Body",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Draft_Subject",
+              "displayName": "Draft_Subject",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Sequence_Status",
+              "displayName": "Sequence_Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Meeting_Status",
+              "displayName": "Meeting_Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Meeting_Date",
+              "displayName": "Meeting_Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Meeting_Link",
+              "displayName": "Meeting_Link",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Connection note",
+              "displayName": "Connection note",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Connection request",
+              "displayName": "Connection request",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        5280,
+        920
+      ],
+      "id": "144ad289-a6ce-4e98-8bdb-ae319186f4d9",
+      "name": "Append row in sheet1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "5UXIJ2FO1VLOtJZe",
+          "name": "Mondee"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        4832,
+        920
+      ],
+      "id": "de5c563d-b2f3-47db-b61f-8e9b2e301abf",
+      "name": "Merge2"
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.filter(item => {\n  const lastName = (item.json.last_name || \"\").trim();\n  return lastName.length > 2;\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3936,
+        920
+      ],
+      "id": "4350e579-08d4-4d1e-ae22-8f0238e91b90",
+      "name": "Code in JavaScript13"
+    },
+    {
+      "parameters": {
+        "content": "Verified Email Finder\n\nStep 1 - Setting Query with Signal\n\nStep 2 -  Search for Blogs or articles with mentioning the companies relates to that signal\n\nStep 3 - After Getting the Source link the message model will read all the sources and analyse the blog and found potential lead company names\n\nStep 4 - finding Linkedin Pages of the founded companies Management persons \n\nStep 5 - With Use of hunter we will find the verified official company mail id of the respective persons \n\nStep 6 - it will stores the output a name, company, role, linkedin, email \n\n\n\n",
+        "height": 336,
+        "width": 576
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        0,
+        0
+      ],
+      "typeVersion": 1,
+      "id": "7c495ee0-b853-4171-a436-a8ec9effd15e",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        5504,
+        920
+      ],
+      "id": "63692f28-0613-4e40-8d94-979ddf2dd798",
+      "name": "Respond to Webhook1"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "fieldsToMatchString": "company_name",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        3488,
+        920
+      ],
+      "id": "71d59089-09be-4823-8610-061f93f8e925",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "amount": 2
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1344,
+        920
+      ],
+      "id": "bd5f8885-fab0-4594-a4f3-b688d90670bd",
+      "name": "Wait1",
+      "webhookId": "5ee52a99-231f-414e-a1ec-5d2ee82c812a"
+    },
+    {
+      "parameters": {
+        "url": "=https://r.jina.ai/{{ $('Code in JavaScript1').item.json.source_link }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "ae63a8d7-7435-42ec-8798-980d9375ee6b",
+      "name": "Jina AI Scraper (Free)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1568,
+        920
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "let raw = ($json.content || \"\").replace(/```json/g, \"\").replace(/```/g, \"\").trim();\ntry {\n  let data = JSON.parse(raw);\n  return (Array.isArray(data) ? data : []).map(item => ({\n    json: {\n      company: item.company,\n      website: item.website || \"N/A\",\n      category: item.category || \"N/A\"\n    }\n  }));\n} catch (e) {\n  return [];\n}"
+      },
+      "id": "04689f14-62cb-4d82-aded-b08244a267c4",
+      "name": "AI Output Parser1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2368,
+        1248
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        2080,
+        1392
+      ],
+      "id": "40ccdd61-3e97-4cf0-b1ce-bc6b3596f1ec",
+      "name": "Loop Over Items",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "maxItems": 5
+      },
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        1648,
+        1392
+      ],
+      "id": "a8ea98e7-1d32-4fda-9694-46baac6a03de",
+      "name": "Limit"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gemini-3-flash-preview",
+          "mode": "list",
+          "cachedResultName": "gemini-3-flash-preview"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=\"Extract ALL legitimate company names and their business domains/categories from the provided text or file. \\n\\nCRITICAL INSTRUCTIONS:\\n1. Extract EVERY SINGLE company listed. Do not summarize or skip any.\\n2. If the data is in a table, extract each row.\\n3. Format as a JSON array: [{\\\"company\\\": \\\"Name\\\", \\\"website\\\": \\\"domain.com (or N/A)\\\", \\\"category\\\": \\\"Business Domain/Details\\\"}].\\n4. Return ONLY the JSON array, no conversational text.\""
+            },
+            {
+              "content": "={{ $('Code in JavaScript5').item.json.text }}"
+            }
+          ]
+        },
+        "options": {
+          "num_batch": 5
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.ollama",
+      "typeVersion": 1,
+      "position": [
+        2352,
+        1408
+      ],
+      "id": "e61a402a-6fe9-40f1-9201-c0ec5c4033c0",
+      "name": "Message a model1",
+      "alwaysOutputData": false,
+      "credentials": {
+        "ollamaApi": {
+          "id": "BZC1qAp83ZOYfHRL",
+          "name": "Instant Announcer"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "let text = $json.data && $json.data.content ? $json.data.content : ($json.data || $json.content || \"\");\nif (typeof text !== \"string\") text = JSON.stringify(text);\n\n// 1. Remove Markdown Images: ![alt](url)\ntext = text.replace(/!\\[.*?\\]\\(.*?\\)/g, \"\");\n\n// 2. Remove Markdown Links but KEEP the text: [Click Here](https://...) -> Click Here\ntext = text.replace(/\\[([^\\]]+)\\]\\([^\\)]+\\)/g, \"$1\");\n\n// 3. Remove any residual HTML comments\ntext = text.replace(/<!--[\\s\\S]*?-->/g, \"\");\n\n// 4. Remove massive empty gaps (3+ blank lines become 1)\ntext = text.replace(/\\n\\s*\\n\\s*\\n/g, \"\\n\\n\");\n\n// Return the fully cleaned, full-length content!\nreturn { text: text.trim() };\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1856,
+        1392
+      ],
+      "id": "3c0bc099-fea6-487f-a32f-7e563b970983",
+      "name": "Code in JavaScript5"
+    }
+  ],
+  "pinData": {
+    "Code in JavaScript1": [
+      {
+        "json": {
+          "title": "Holiday Tribe Raises Rs 25 Crore Pre-Series A to Scale AI Travel ...",
+          "source_link": "https://www.siliconindia.com/startup/startup-funding/holiday-tribe-raises-rs-25-crore-preseries-a-to-scale-ai-travel-platform-nwid-50653.html",
+          "snippet": "... Series A to ... Series B led by Vertex Ventures Southeast Asia & India. Read More : Cybersecurity Startup 1Kosmos Raises $57 Million in Series B Funding."
+        }
+      },
+      {
+        "json": {
+          "title": "WanderOn raises ₹54 crore in Series A funding - LinkedIn",
+          "source_link": "https://www.linkedin.com/posts/d2c-insider_pulsedaily-activity-7419597114843836418-DQfH",
+          "snippet": "... Series A round led by DSG Consumer Partners and Client Associates ... Series B extension round. The round was led by PSG Equity through ..."
+        }
+      },
+      {
+        "json": {
+          "title": "Zypp Electric company information, funding & investors",
+          "source_link": "https://ecosystem.dubaifoundershq.com/companies/zypp_electric",
+          "snippet": "Series A. Apr 2022 *. Northern Arc. $1.0m. Debt. Sep 2022 *. Venture Catalysts. $9.0m. Series B. Feb 2023 *. LetsVenture · Indian Angel Network · Gogoro ..."
+        }
+      },
+      {
+        "json": {
+          "title": "Black Swan Summit #startup #investor #meet #grow #odisha",
+          "source_link": "https://www.instagram.com/reel/DUS8Re_k1Ri/",
+          "snippet": "Angel Investors — believe in your idea, take high risk Growth stage. Venture Capitalists (VCs) — invest when your model shows traction ..."
+        }
+      },
+      {
+        "json": {
+          "title": "ADIA Invests in US Flyr During $295 Million Capital Raise - Inc. Arabia",
+          "source_link": "https://en.incarabia.com/adia-invests-in-flyr-during-295-million-capital-raise-675841.html",
+          "snippet": "Abyan Capital Raises $18 Million in Series A Funding. Startup. Egypt-Based ... Dubai Insurance Invests in OneDegree Series B Round. Money. Axian Group ..."
+        }
+      },
+      {
+        "json": {
+          "title": "Peak XV-backed Indian spiritual tech startup bags $20m series C",
+          "source_link": "https://www.techinasia.com/news/peak-xv-backed-indian-spiritual-tech-startup-bags-20m-series-c",
+          "snippet": "Peak XV-backed Indian spiritual tech startup bags $20m series C ... providers, creating more stable, year-round revenue streams for priests ..."
+        }
+      },
+      {
+        "json": {
+          "title": "Guiddoo World Story- Solves your In-Destination Travel Needs",
+          "source_link": "https://startuptalky.com/guiddoo-funding-founder-story/",
+          "snippet": "Series A, $800 k, Rennie Ratadia (Singapore), Stephen Dmello (Dubai) & Angshuman Sarkar (India). March 2019, Series B ... Startup in India | ..."
+        }
+      },
+      {
+        "json": {
+          "title": "Indian budget hotel startup Oyo is off to a good start in UAE, hosts ...",
+          "source_link": "https://www.menabytes.com/oyo-uae-2018/",
+          "snippet": "Dubai recently had extended its tourism ambitions, announcing that ... Series A to expand digital mortgage platform across GCC · Dubai AI ..."
+        }
+      },
+      {
+        "json": {
+          "title": "Will some of these Indian startups become the country's next unicorns?",
+          "source_link": "https://gulfnews.com/business/markets/will-some-of-these-indian-startups-become-the-countrys-next-unicorns-1.1641447064435",
+          "snippet": "Dubai: India's startups ... The plan was to showcase two startups every day to give them the exposure they needed at the growth stage."
+        }
+      },
+      {
+        "json": {
+          "title": "Why has the number of Indian startups in Y Combinator batches ...",
+          "source_link": "https://www.reddit.com/r/StartUpIndia/comments/1pqsnxy/why_has_the_number_of_indian_startups_in_y/",
+          "snippet": "Quick money. Don't believe me? See giga, customers are zepto and doordash, revenue up, now 61M series A. Significant_Show_237. • 4mo ago."
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Wait1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "Code Node Company name and Website",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Linkedin Finder": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code Node Company name and Website": {
+      "main": [
+        [
+          {
+            "node": "Linkedin Finder",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook1": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets1": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook2": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: Get List": {
+      "main": [
+        [
+          {
+            "node": "Read Queries",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Queries": {
+      "main": [
+        [
+          {
+            "node": "Respond List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: Append New": {
+      "main": [
+        [
+          {
+            "node": "Append Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append Query": {
+      "main": [
+        [
+          {
+            "node": "Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript4": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request5": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript12",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript11": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript13",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript12": {
+      "main": [
+        [
+          {
+            "node": "Merge2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request5",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge2",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge2": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript13": {
+      "main": [
+        [
+          {
+            "node": "Limit1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet1": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript11",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait1": {
+      "main": [
+        [
+          {
+            "node": "Jina AI Scraper (Free)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Jina AI Scraper (Free)": {
+      "main": [
+        [
+          {
+            "node": "Limit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "AI Output Parser1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Message a model1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript5": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Output Parser1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "ab7b04fe-d546-4efd-9974-96ed5aee8603",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "48873ca0faf2834fcac348c85b5cfe8a77d198239fa094d25a95512e1a2e676b"
+  },
+  "id": "wnV6EKkScbUQLoYg",
+  "tags": []
+}

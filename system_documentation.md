@@ -17,6 +17,8 @@ This table covers the primary logic within your active n8n workflows.
 | **Lead Finder Swarm** | Acquisition | Targets LinkedIn via Serper.dev, filters by "Management" titles using LLM, and retrieves verified emails via Hunter.io. |
 | **Email Personalizer** | Personalization | Merges lead metadata with company research to generate high-conversion email drafts (Subject + Body). |
 | **Daily Social Research** | Intelligence | Scrapes live industry trends via Serper.dev and scripts to provide the "ammunition" for the Closer agent. |
+| **Google Calendar Bridge** | Conversion | Listens for new calendar events and updates the lead status to **"Converted"** in Google Sheets. |
+| **Meeting Intelligence** | Logic | AI Agent recognizes demo requests and automatically shares your Appointment Schedule link. |
 
 ---
 
@@ -31,6 +33,7 @@ This table explains the user experience and the "Agentic" value behind each tab.
 | **Closer Agent** | View "Ready to Close" leads and send personalized invitations with one click. | Matches a specific lead with a specific research trend, then triggers the Unipile + n8n outreach chain. | **High Conversion**: Moves beyond "spam" by sending invites that reference real-time industry news the lead cares about. |
 | **AI Personalization** | Refine and edit AI-generated email drafts before sending. | Pulls lead metadata and maps it into custom email templates via LLM text completion. | **Scalable Personalization**: Allows 1 human to do the high-quality outreach work of 10 SDRs. |
 | **Mail Sender** | Review final drafts and queue them for sending via Gmail/SMTP. | Interfaces with Hunter.io for final verification and SMTP nodes for delivery tracking. | **Reliable Delivery**: Ensures outreach hits the inbox with verified status tracking. |
+| **Meeting Booking** | View leads that have moved from "Replied" to "Booked" status. | Syncs directly with Google Calendar to log confirmed appointment times and conversion data. | **ROI Tracking**: Directly measures the success of the outreach engine in booked meetings. |
 | **Activity Log** | View history of all agent actions, successes, and errors. | Aggregates logs from the n8n backend and local storage to provide a unified "Source of Truth". | **Full Transparency**: Allows for auditing of AI decisions and debugging of connectivity issues. |
 
 ---

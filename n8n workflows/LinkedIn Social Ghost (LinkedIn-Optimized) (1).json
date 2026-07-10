@@ -5,6 +5,7 @@
       "parameters": {
         "httpMethod": "POST",
         "path": "daily-social-research",
+        "responseMode": "responseNode",
         "options": {}
       },
       "type": "n8n-nodes-base.webhook",
@@ -19,7 +20,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const results = [];\nconst seenLinks = new Set();\n\nconst addResult = (link, title, snippet) => {\n  if (link && link.includes('linkedin.com/') && !seenLinks.has(link)) {\n    seenLinks.add(link);\n    results.push({ \n      json: { \n        title: title || \"New LinkedIn Post\", \n        link: link, \n        snippet: snippet || title || \"No context available\" \n      } \n    });\n  }\n};\n\n// 1. Process Organic Results\nconst organic = $node[\"SerpApi\"].json.organic_results;\nif (organic && Array.isArray(organic)) {\n  organic.forEach(res => {\n    addResult(res.link, res.title, res.snippet);\n  });\n}\n\n// 2. Process Perspectives (The feature you found!)\nconst perspectives = $node[\"SerpApi\"].json.perspectives;\nif (perspectives && Array.isArray(perspectives)) {\n  perspectives.forEach(res => {\n    const link = res.link || res.link_url || res.url;\n    addResult(link, res.title, res.snippet || res.title);\n  });\n}\n\nreturn results.slice(0, 3); // Returns top 3 unique posts\n"
+        "jsCode": "const results = [];\nconst seenLinks = new Set();\n\nconst addResult = (link, title, snippet) => {\n  if (link && link.includes('linkedin.com/') && !seenLinks.has(link)) {\n    seenLinks.add(link);\n    results.push({ \n      json: { \n        title: title || \"New LinkedIn Post\", \n        link: link, \n        snippet: snippet || title || \"No context available\" \n      } \n    });\n  }\n};\n\n// 1. Process Organic Results from \"HTTP Request\" node\nconst organic = $node[\"HTTP Request\"].json.organic_results;\nif (organic && Array.isArray(organic)) {\n  organic.forEach(res => {\n    addResult(res.link, res.title, res.snippet);\n  });\n}\n\n// 2. Process Perspectives \nconst perspectives = $node[\"HTTP Request\"].json.perspectives;\nif (perspectives && Array.isArray(perspectives)) {\n  perspectives.forEach(res => {\n    const link = res.link || res.link_url || res.url;\n    addResult(link, res.title, res.snippet || res.title);\n  });\n}\n\nreturn results.slice(0, 3); // Returns top 3 unique posts\n"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -66,37 +67,13 @@
     },
     {
       "parameters": {
-        "sendTo": "dhanushmohanraj78@gmail.com",
-        "subject": "={{ \" LinkedIn Opportunity: \" + $node[\"LinkedIn Filter\"].json[\"title\"].substring(0, 50) + \"...\" }}\n",
-        "message": "=<h3>Expert LinkedIn Opportunity Found!</h3>\n<p><strong>Topic:</strong> <a href=\"{{ $node[\"LinkedIn Filter\"].json[\"link\"] }}\" style=\"color: #FA4D33; font-weight: bold;\">{{ $node[\"LinkedIn Filter\"].json[\"title\"] }}</a></p>\n\n<div style=\"background-color: #F9F4F0; padding: 24px; border-radius: 12px; border-left: 5px solid #4F001D; margin: 20px 0;\">\n  <h4 style=\"margin-top: 0; color: #4F001D;\">Proposed Comments:</h4>\n  <div style=\"white-space: pre-wrap; line-height: 1.6; color: #172B4D;\">{{ $json.content }}</div>\n</div>\n\n<p style=\"font-size: 13px; color: #7A869A;\">Click the link above to view the post, paste your favorite draft, and win the feed!</p>\n",
-        "options": {}
-      },
-      "type": "n8n-nodes-base.gmail",
-      "typeVersion": 2.1,
-      "position": [
-        1024,
-        0
-      ],
-      "id": "01aff9a9-fcd3-4812-aaef-acea23e9d5bd",
-      "name": "Gmail",
-      "webhookId": "8f6f34ae-5b14-464e-ad3d-20a3f2bb1618",
-      "credentials": {
-        "gmailOAuth2": {
-          "id": "5b2fYtWoLEnRYlSA",
-          "name": "Gmail account 2"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "respondWith": "json",
-        "responseBody": "={\n  \"title\": \"{{ $node[\"LinkedIn Filter\"].json[\"title\"] }}\",\n  \"link\": \"{{ $node[\"LinkedIn Filter\"].json[\"link\"] }}\",\n  \"content\": \"{{ $node[\"Ollama\"].json[\"content\"] }}\"\n}\n",
+        "respondWith": "allIncomingItems",
         "options": {}
       },
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        1232,
+        1500,
         0
       ],
       "id": "c7b1742f-c7c4-4cf7-a010-47ba3cdc0d3a",
@@ -121,8 +98,8 @@
               "value": "India"
             },
             {
-              "name": "api-key",
-              "value": "f07d353ac184511449c8a3409b782aa2d16d9ff7"
+              "name": "api_key",
+              "value": "bf59eec02e55ebd2c2dda0d5396370edd81e5170f414b0cbf632af4ba466597e"
             }
           ]
         },
@@ -136,6 +113,64 @@
       ],
       "id": "503bf0db-0a7f-47a8-b2c0-c55d886cb7e1",
       "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst filterResults = $('LinkedIn Filter').all();\nconst ollamaResults = $('Ollama').all();\n\n// Assuming webhook body has the raw query topic\nconst topic = $('Webhook').first().json.body.query || 'Unknown Topic';\n\nreturn ollamaResults.map((item, i) => {\n  return {\n    json: {\n      ID: 'LNK-' + Math.random().toString(36).substr(2, 9).toUpperCase(),\n      Topic: topic,\n      Title: filterResults[i].json.title,\n      Link: filterResults[i].json.link,\n      Content: item.json.content,\n      Status: 'Pending'\n    }\n  }\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        0
+      ],
+      "id": "merge-data-node",
+      "name": "Merge Data"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls",
+          "mode": "list",
+          "cachedResultName": "ICP",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "LinkedIn Drafts",
+          "mode": "name",
+          "cachedResultName": "LinkedIn Drafts"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ID": "={{$json.ID}}",
+            "Topic": "={{$json.Topic}}",
+            "Title": "={{$json.Title}}",
+            "Link": "={{$json.Link}}",
+            "Content": "={{$json.Content}}",
+            "Status": "={{$json.Status}}"
+          },
+          "matchingColumns": []
+        },
+        "options": {}
+      },
+      "id": "sheet-append-1776096254665",
+      "name": "Save to DB",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.1,
+      "position": [
+        1300,
+        0
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "RQHgqiU45PVMtr8V",
+          "name": "Mondee 2"
+        }
+      }
     }
   ],
   "pinData": {},
@@ -144,7 +179,7 @@
       "main": [
         [
           {
-            "node": "HTTP Request",
+            "node": "Ollama Query Generator",
             "type": "main",
             "index": 0
           }
@@ -166,18 +201,7 @@
       "main": [
         [
           {
-            "node": "Gmail",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Gmail": {
-      "main": [
-        [
-          {
-            "node": "Respond to Webhook",
+            "node": "Merge Data",
             "type": "main",
             "index": 0
           }
@@ -194,6 +218,39 @@
           }
         ]
       ]
+    },
+    "Ollama Query Generator": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Data": {
+      "main": [
+        [
+          {
+            "node": "Save to DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save to DB": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": true,
@@ -202,7 +259,7 @@
     "binaryMode": "separate",
     "availableInMCP": false
   },
-  "versionId": "c24ab552-c139-45ba-83d6-3cd6f9d6618b",
+  "versionId": "f8221b0a-6694-41e9-9cd1-6436f0c6e5d0",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "48873ca0faf2834fcac348c85b5cfe8a77d198239fa094d25a95512e1a2e676b"

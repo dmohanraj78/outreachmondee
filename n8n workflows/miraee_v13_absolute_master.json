@@ -1,0 +1,2006 @@
+{
+  "name": "MIRAEE_V13_ABSOLUTE_MASTER",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * *"
+            }
+          ]
+        }
+      },
+      "id": "A",
+      "name": "A: Cron Trigger - Daily",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { query: 'SaaS CFO India' } }];"
+      },
+      "id": "B",
+      "name": "B: Query Generator",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        200,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://google.serper.dev/search",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-KEY",
+              "value": "YOUR_SERPER_KEY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "jsonBody": "{\"q\":\"={{$json.query}}\"}"
+      },
+      "id": "C",
+      "name": "C: Serper Search",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        400,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "chat",
+        "model": "llama3",
+        "prompt": "=Extract company names and domains from these snippets: {{$json.organic}}. Return JSON strictly formatted as [{\"company\":\"...\",\"domain\":\"...\"}]."
+      },
+      "id": "D",
+      "name": "D: AI Company Extractor",
+      "type": "n8n-nodes-base.ollama",
+      "typeVersion": 1,
+      "position": [
+        600,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "try { return JSON.parse($json.content).map(c => ({ json: c })); } catch(e) { return []; }"
+      },
+      "id": "E",
+      "name": "E: Domain Cleaner",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "lookup",
+        "documentId": {
+          "__rl": true,
+          "value": "1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Company_Master",
+          "mode": "name"
+        },
+        "lookupColumn": "domain",
+        "lookupValue": "={{$json.domain}}"
+      },
+      "id": "F",
+      "name": "F: Dedupe Check",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        1000,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$node[\"F: Dedupe Check\"].json.domain ? true : false}}",
+              "operation": "isFalse"
+            }
+          ]
+        }
+      },
+      "id": "G",
+      "name": "G: New Company?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1200,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Company_Master",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "company": "={{$json.company}}",
+            "domain": "={{$json.domain}}",
+            "state": "NEW"
+          }
+        }
+      },
+      "id": "H",
+      "name": "H: Store Company",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        1400,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://api.hunter.io/v2/domain-search",
+        "sendQueryParameters": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "domain",
+              "value": "={{$json.domain}}"
+            },
+            {
+              "name": "api_key",
+              "value": "YOUR_HUNTER_KEY"
+            }
+          ]
+        }
+      },
+      "id": "I",
+      "name": "I: Hunter Search",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1600,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1
+      },
+      "id": "J",
+      "name": "J: Split Leads",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 1,
+      "position": [
+        1800,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://api.hunter.io/v2/email-finder",
+        "sendQueryParameters": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "domain",
+              "value": "={{$node[\"H: Store Company\"].json.domain}}"
+            },
+            {
+              "name": "api_key",
+              "value": "YOUR_HUNTER_KEY"
+            }
+          ]
+        }
+      },
+      "id": "K",
+      "name": "K: Email Finder",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        2000,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "if($json.email && !$json.email.includes('info@')) return [{json: $json}]; return [];"
+      },
+      "id": "L",
+      "name": "L: Email Filter",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2200,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{json: {...$json, persona: 'CFO'}}];"
+      },
+      "id": "M",
+      "name": "M: Persona Filter",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2400,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://api.hunter.io/v2/email-verifier",
+        "sendQueryParameters": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "email",
+              "value": "={{$json.email}}"
+            },
+            {
+              "name": "api_key",
+              "value": "YOUR_HUNTER_KEY"
+            }
+          ]
+        }
+      },
+      "id": "N",
+      "name": "N: Verification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        2600,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.data.status}}",
+              "value2": "deliverable"
+            }
+          ]
+        }
+      },
+      "id": "O",
+      "name": "O: Valid Email?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        2800,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Lead_Master",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "email": "={{$json.email}}",
+            "state": "NEW",
+            "company": "={{$node[\"H: Store Company\"].json.company}}",
+            "persona": "={{$node[\"M: Persona Filter\"].json.persona}}"
+          }
+        }
+      },
+      "id": "P",
+      "name": "P: Store Lead",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        3000,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "documentId": {
+          "__rl": true,
+          "value": "1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Lead_Master",
+          "mode": "name"
+        },
+        "limit": 40
+      },
+      "id": "Q",
+      "name": "Q: Load Leads",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        0,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1
+      },
+      "id": "R",
+      "name": "R: Lead Batches",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 1,
+      "position": [
+        200,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "lookup",
+        "documentId": {
+          "__rl": true,
+          "value": "1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Blacklist",
+          "mode": "name"
+        },
+        "lookupColumn": "email",
+        "lookupValue": "={{$json.email}}"
+      },
+      "id": "S",
+      "name": "S: Blacklist Check",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        400,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$node[\"S: Blacklist Check\"].json.email ? true : false}}",
+              "operation": "isFalse"
+            }
+          ]
+        }
+      },
+      "id": "T",
+      "name": "T: Blocked?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        600,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{json: { ...$json, state: ($json.state || 'NEW').toUpperCase() }}];"
+      },
+      "id": "U",
+      "name": "U: State Reader",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{$json.state}}",
+        "rules": {
+          "rules": [
+            {
+              "value2": "NEW",
+              "output": 0
+            },
+            {
+              "value2": "CONTACTED_D1",
+              "output": 1
+            },
+            {
+              "value2": "CONTACTED_D2",
+              "output": 2
+            },
+            {
+              "value2": "CONTACTED_D4",
+              "output": 3
+            }
+          ]
+        }
+      },
+      "id": "V",
+      "name": "V: State Switch",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{json: {...$json, action: 'Enrich'}}];"
+      },
+      "id": "W1",
+      "name": "W1: Enrichment Brain",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://google.serper.dev/search",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-KEY",
+              "value": "YOUR_SERPER_KEY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "jsonBody": "{\"q\":\"={{$json.company}} news\"}"
+      },
+      "id": "X",
+      "name": "X: Serper News",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1400,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "chat",
+        "model": "llama3",
+        "prompt": "=Identify pain points for {{$json.company}}: {{$json.organic}}"
+      },
+      "id": "Y",
+      "name": "Y: Pain Point AI",
+      "type": "n8n-nodes-base.ollama",
+      "typeVersion": 1,
+      "position": [
+        1600,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{json: $json}];"
+      },
+      "id": "Y1",
+      "name": "Y1: AI Validation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1800,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{json: { ...$json, action: 'Gen Email' }}];"
+      },
+      "id": "W2",
+      "name": "W2: Prep Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "chat",
+        "model": "llama3",
+        "prompt": "=Write cold email for {{$json.email}} regarding {{$json.company}}"
+      },
+      "id": "W2A",
+      "name": "W2A: AI Email Gen",
+      "type": "n8n-nodes-base.ollama",
+      "typeVersion": 1,
+      "position": [
+        1400,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{json: { ...$json, body: $json.content }}];"
+      },
+      "id": "W2B",
+      "name": "W2B: Output Cleaner",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1600,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{json: { ...$json, ready: true }}];"
+      },
+      "id": "W3",
+      "name": "W3: Ready to Send",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "documentId": {
+          "__rl": true,
+          "value": "1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Campaign_Logs",
+          "mode": "name"
+        },
+        "limit": 40
+      },
+      "id": "AA",
+      "name": "AA: Send Log Check",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        1400,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "if(items.length < 40) return [{json:{ok:true}}]; return [];"
+      },
+      "id": "AB",
+      "name": "AB: Throttle Gate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1600,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const h = new Date().getHours(); return (h>9 && h<18) ? [{json:{go:true}}] : [];"
+      },
+      "id": "AC",
+      "name": "AC: Working Hours",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1800,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "={{$node[\"U: State Reader\"].json.email}}",
+        "subject": "Proposal for {{$node[\"U: State Reader\"].json.company}}",
+        "message": "={{$node[\"W2B: Output Cleaner\"].json.body}}"
+      },
+      "id": "AD",
+      "name": "AD: Gmail Initial",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        2000,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Lead_Master",
+          "mode": "name"
+        },
+        "columns": {
+          "matchingColumns": [
+            "email"
+          ],
+          "mappingMode": "defineBelow",
+          "value": {
+            "email": "={{$node[\"U: State Reader\"].json.email}}",
+            "state": "CONTACTED_D1"
+          }
+        }
+      },
+      "id": "AE",
+      "name": "AE: Update D1",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        2200,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Campaign_Logs",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "email": "={{$node[\"U: State Reader\"].json.email}}",
+            "status": "Sent"
+          }
+        }
+      },
+      "id": "AF",
+      "name": "AF: Log Initial",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        2400,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{json: {...$json, step: 2}}];"
+      },
+      "id": "D2",
+      "name": "D2: Drip Start",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        900
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 2,
+        "unit": "days"
+      },
+      "id": "BA",
+      "name": "BA: Wait 2D",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [
+        1400,
+        900
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "lookup",
+        "documentId": {
+          "__rl": true,
+          "value": "1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Lead_Master",
+          "mode": "name"
+        },
+        "lookupColumn": "email",
+        "lookupValue": "={{$json.email}}"
+      },
+      "id": "BB",
+      "name": "BB: Reply Gap",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        1600,
+        900
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$node[\"BB: Reply Gap\"].json.replied}}",
+              "operation": "isFalse"
+            }
+          ]
+        }
+      },
+      "id": "BC",
+      "name": "BC: No Reply?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1800,
+        900
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "={{$node[\"U: State Reader\"].json.email}}",
+        "subject": "Checking in!",
+        "message": "Hi {{$node[\"U: State Reader\"].json.email}}, following up on my previous note."
+      },
+      "id": "BD",
+      "name": "BD: Gmail Day 2",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        2000,
+        900
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Lead_Master",
+          "mode": "name"
+        },
+        "columns": {
+          "matchingColumns": [
+            "email"
+          ],
+          "mappingMode": "defineBelow",
+          "value": {
+            "email": "={{$node[\"U: State Reader\"].json.email}}",
+            "state": "CONTACTED_D2"
+          }
+        }
+      },
+      "id": "BE",
+      "name": "BE: Update D2",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        2200,
+        900
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{json: {...$json, step: 4}}];"
+      },
+      "id": "D4",
+      "name": "D4: Drip Step 2",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        1100
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 2,
+        "unit": "days"
+      },
+      "id": "CA",
+      "name": "CA: Wait 2D (4)",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [
+        1400,
+        1100
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "lookup",
+        "documentId": {
+          "__rl": true,
+          "value": "1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Lead_Master",
+          "mode": "name"
+        },
+        "lookupColumn": "email",
+        "lookupValue": "={{$json.email}}"
+      },
+      "id": "CB",
+      "name": "CB: Reply Gap (4)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        1600,
+        1100
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$node[\"CB: Reply Gap (4)\"].json.replied}}",
+              "operation": "isFalse"
+            }
+          ]
+        }
+      },
+      "id": "CC",
+      "name": "CC: No Reply? (4)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1800,
+        1100
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "={{$node[\"U: State Reader\"].json.email}}",
+        "subject": "One last thought!",
+        "message": "I wanted to bump this to the top of your inbox."
+      },
+      "id": "CD",
+      "name": "CD: Gmail Day 4",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        2000,
+        1100
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Lead_Master",
+          "mode": "name"
+        },
+        "columns": {
+          "matchingColumns": [
+            "email"
+          ],
+          "mappingMode": "defineBelow",
+          "value": {
+            "email": "={{$node[\"U: State Reader\"].json.email}}",
+            "state": "CONTACTED_D4"
+          }
+        }
+      },
+      "id": "CE",
+      "name": "CE: Update D4",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        2200,
+        1100
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{json: {...$json, step: 6}}];"
+      },
+      "id": "D6",
+      "name": "D6: Drip Step 3",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        1300
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 2,
+        "unit": "days"
+      },
+      "id": "DA",
+      "name": "DA: Wait 2D (6)",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [
+        1400,
+        1300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "lookup",
+        "documentId": {
+          "__rl": true,
+          "value": "1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Lead_Master",
+          "mode": "name"
+        },
+        "lookupColumn": "email",
+        "lookupValue": "={{$json.email}}"
+      },
+      "id": "DB",
+      "name": "DB: Reply Gap (6)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        1600,
+        1300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$node[\"DB: Reply Gap (6)\"].json.replied}}",
+              "operation": "isFalse"
+            }
+          ]
+        }
+      },
+      "id": "DC",
+      "name": "DC: No Reply? (6)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1800,
+        1300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "={{$node[\"U: State Reader\"].json.email}}",
+        "subject": "Moving on",
+        "message": "I'll assume this isn't a priority right now."
+      },
+      "id": "DD",
+      "name": "DD: Gmail Day 6",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        2000,
+        1300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Campaign_Logs",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "email": "={{$node[\"U: State Reader\"].json.email}}",
+            "status": "Finished"
+          }
+        }
+      },
+      "id": "DE",
+      "name": "DE: Finish Flow",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        2200,
+        1300
+      ]
+    },
+    {
+      "parameters": {
+        "filters": {
+          "read": "unread"
+        }
+      },
+      "id": "Z",
+      "name": "Z: Gmail Reply Trigger",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        1800
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "get",
+        "messageId": "={{$json.id}}"
+      },
+      "id": "R1",
+      "name": "R1: Fetch Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        200,
+        1800
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{json: { text: $json.plainText, from: $json.from.value[0].address }}];"
+      },
+      "id": "R2",
+      "name": "R2: Thread Match",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        1800
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "chat",
+        "model": "llama3",
+        "prompt": "=Classify intent (Interested/OOO/Objection/Curious): {{$json.text}}. Return strictly the classification flag."
+      },
+      "id": "R3",
+      "name": "R3: Intent AI",
+      "type": "n8n-nodes-base.ollama",
+      "typeVersion": 1,
+      "position": [
+        600,
+        1800
+      ]
+    },
+    {
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{$json.content}}",
+        "rules": {
+          "rules": [
+            {
+              "value2": "Interested",
+              "output": 0
+            },
+            {
+              "value2": "OOO",
+              "output": 1
+            },
+            {
+              "value2": "Curious",
+              "output": 2
+            }
+          ]
+        }
+      },
+      "id": "R4",
+      "name": "R4: Intent Switch",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [
+        800,
+        1800
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "={{$node[\"R2: Thread Match\"].json.from}}",
+        "subject": "Re: Following up",
+        "message": "Book here: https://calendly.com/dmohanraj-mondee"
+      },
+      "id": "M1",
+      "name": "M1: Send Calendly",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1000,
+        1700
+      ]
+    },
+    {
+      "parameters": {
+        "calendarId": "primary",
+        "start": "={{new Date().toISOString()}}",
+        "summary": "Meeting"
+      },
+      "id": "M2",
+      "name": "M2: GMeet Link",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1,
+      "position": [
+        1200,
+        1700
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "={{$node[\"R2: Thread Match\"].json.from}}",
+        "subject": "Re: Meeting Link",
+        "message": "Meet here: {{$json.hangoutLink}}"
+      },
+      "id": "M3",
+      "name": "M3: Send GMeet",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1400,
+        1700
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "dhanush@miraee.ai",
+        "subject": "New Interested Lead!",
+        "message": "Lead from {{$node[\"R2: Thread Match\"].json.from}} is interested."
+      },
+      "id": "M4",
+      "name": "M4: Internal Notify",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1600,
+        1700
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 3,
+        "unit": "days"
+      },
+      "id": "O1",
+      "name": "O1: OOO Delay",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        1850
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 0 * * 0"
+            }
+          ]
+        }
+      },
+      "id": "OPT1",
+      "name": "OPT1: Weekly Report",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        2200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{json: { conv: '5%' }}];"
+      },
+      "id": "OPT2",
+      "name": "OPT2: Math Engine",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        200,
+        2200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "chat",
+        "model": "llama3",
+        "prompt": "=Identify traps: {{$json.conv}}"
+      },
+      "id": "OPT3",
+      "name": "OPT3: AI Optimizer",
+      "type": "n8n-nodes-base.ollama",
+      "typeVersion": 1,
+      "position": [
+        400,
+        2200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Reports",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "report": "={{$json.content}}"
+          }
+        }
+      },
+      "id": "OPT4",
+      "name": "OPT4: Store Repo",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        600,
+        2200
+      ]
+    }
+  ],
+  "connections": {
+    "A: Cron Trigger - Daily": {
+      "main": [
+        [
+          {
+            "node": "B: Query Generator",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Q: Load Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "B: Query Generator": {
+      "main": [
+        [
+          {
+            "node": "C: Serper Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "C: Serper Search": {
+      "main": [
+        [
+          {
+            "node": "D: AI Company Extractor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "D: AI Company Extractor": {
+      "main": [
+        [
+          {
+            "node": "E: Domain Cleaner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "E: Domain Cleaner": {
+      "main": [
+        [
+          {
+            "node": "F: Dedupe Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "F: Dedupe Check": {
+      "main": [
+        [
+          {
+            "node": "G: New Company?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "G: New Company?": {
+      "main": [
+        [
+          {
+            "node": "H: Store Company",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "H: Store Company": {
+      "main": [
+        [
+          {
+            "node": "I: Hunter Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "I: Hunter Search": {
+      "main": [
+        [
+          {
+            "node": "J: Split Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "J: Split Leads": {
+      "main": [
+        [
+          {
+            "node": "K: Email Finder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "K: Email Finder": {
+      "main": [
+        [
+          {
+            "node": "L: Email Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "L: Email Filter": {
+      "main": [
+        [
+          {
+            "node": "M: Persona Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "M: Persona Filter": {
+      "main": [
+        [
+          {
+            "node": "N: Verification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "N: Verification": {
+      "main": [
+        [
+          {
+            "node": "O: Valid Email?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "O: Valid Email?": {
+      "main": [
+        [
+          {
+            "node": "P: Store Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Q: Load Leads": {
+      "main": [
+        [
+          {
+            "node": "R: Lead Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "R: Lead Batches": {
+      "main": [
+        [
+          {
+            "node": "S: Blacklist Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "S: Blacklist Check": {
+      "main": [
+        [
+          {
+            "node": "T: Blocked?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "T: Blocked?": {
+      "main": [
+        [
+          {
+            "node": "U: State Reader",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "U: State Reader": {
+      "main": [
+        [
+          {
+            "node": "V: State Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "V: State Switch": {
+      "main": [
+        [
+          {
+            "node": "W1: Enrichment Brain",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "W2: Prep Email",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "W3: Ready to Send",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "D2: Drip Start",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "D4: Drip Step 2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "D6: Drip Step 3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "W1: Enrichment Brain": {
+      "main": [
+        [
+          {
+            "node": "X: Serper News",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "X: Serper News": {
+      "main": [
+        [
+          {
+            "node": "Y: Pain Point AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Y: Pain Point AI": {
+      "main": [
+        [
+          {
+            "node": "Y1: AI Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "W2: Prep Email": {
+      "main": [
+        [
+          {
+            "node": "W2A: AI Email Gen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "W2A: AI Email Gen": {
+      "main": [
+        [
+          {
+            "node": "W2B: Output Cleaner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "W3: Ready to Send": {
+      "main": [
+        [
+          {
+            "node": "AA: Send Log Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AA: Send Log Check": {
+      "main": [
+        [
+          {
+            "node": "AB: Throttle Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AB: Throttle Gate": {
+      "main": [
+        [
+          {
+            "node": "AC: Working Hours",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AC: Working Hours": {
+      "main": [
+        [
+          {
+            "node": "AD: Gmail Initial",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AD: Gmail Initial": {
+      "main": [
+        [
+          {
+            "node": "AE: Update D1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AE: Update D1": {
+      "main": [
+        [
+          {
+            "node": "AF: Log Initial",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "D2: Drip Start": {
+      "main": [
+        [
+          {
+            "node": "BA: Wait 2D",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "BA: Wait 2D": {
+      "main": [
+        [
+          {
+            "node": "BB: Reply Gap",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "BB: Reply Gap": {
+      "main": [
+        [
+          {
+            "node": "BC: No Reply?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "BC: No Reply?": {
+      "main": [
+        [
+          {
+            "node": "BD: Gmail Day 2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "BD: Gmail Day 2": {
+      "main": [
+        [
+          {
+            "node": "BE: Update D2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "D4: Drip Step 2": {
+      "main": [
+        [
+          {
+            "node": "CA: Wait 2D (4)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CA: Wait 2D (4)": {
+      "main": [
+        [
+          {
+            "node": "CB: Reply Gap (4)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CB: Reply Gap (4)": {
+      "main": [
+        [
+          {
+            "node": "CC: No Reply? (4)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CC: No Reply? (4)": {
+      "main": [
+        [
+          {
+            "node": "CD: Gmail Day 4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CD: Gmail Day 4": {
+      "main": [
+        [
+          {
+            "node": "CE: Update D4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "D6: Drip Step 3": {
+      "main": [
+        [
+          {
+            "node": "DA: Wait 2D (6)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DA: Wait 2D (6)": {
+      "main": [
+        [
+          {
+            "node": "DB: Reply Gap (6)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DB: Reply Gap (6)": {
+      "main": [
+        [
+          {
+            "node": "DC: No Reply? (6)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DC: No Reply? (6)": {
+      "main": [
+        [
+          {
+            "node": "DD: Gmail Day 6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DD: Gmail Day 6": {
+      "main": [
+        [
+          {
+            "node": "DE: Finish Flow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Z: Gmail Reply Trigger": {
+      "main": [
+        [
+          {
+            "node": "R1: Fetch Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "R1: Fetch Email": {
+      "main": [
+        [
+          {
+            "node": "R2: Thread Match",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "R2: Thread Match": {
+      "main": [
+        [
+          {
+            "node": "R3: Intent AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "R3: Intent AI": {
+      "main": [
+        [
+          {
+            "node": "R4: Intent Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "R4: Intent Switch": {
+      "main": [
+        [
+          {
+            "node": "M1: Send Calendly",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "O1: OOO Delay",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "M1: Send Calendly": {
+      "main": [
+        [
+          {
+            "node": "M2: GMeet Link",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "M2: GMeet Link": {
+      "main": [
+        [
+          {
+            "node": "M3: Send GMeet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "M3: Send GMeet": {
+      "main": [
+        [
+          {
+            "node": "M4: Internal Notify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OPT1: Weekly Report": {
+      "main": [
+        [
+          {
+            "node": "OPT2: Math Engine",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OPT2: Math Engine": {
+      "main": [
+        [
+          {
+            "node": "OPT3: AI Optimizer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OPT3: AI Optimizer": {
+      "main": [
+        [
+          {
+            "node": "OPT4: Store Repo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

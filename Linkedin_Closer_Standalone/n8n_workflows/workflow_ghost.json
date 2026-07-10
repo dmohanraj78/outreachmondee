@@ -1,0 +1,269 @@
+{
+  "name": "LinkedIn Social Ghost (LinkedIn-Optimized)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "daily-social-research",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "2b4f03e5-097d-4072-bc1a-32334cde12a2",
+      "name": "Webhook",
+      "webhookId": "62e1b985-0a11-41a0-9d2a-83bdcebeab22"
+    },
+    {
+      "parameters": {
+        "jsCode": "const results = [];\nconst seenLinks = new Set();\n\nconst addResult = (link, title, snippet) => {\n  if (link && link.includes('linkedin.com/') && !seenLinks.has(link)) {\n    seenLinks.add(link);\n    results.push({ \n      json: { \n        title: title || \"New LinkedIn Post\", \n        link: link, \n        snippet: snippet || title || \"No context available\" \n      } \n    });\n  }\n};\n\n// 1. Process Organic Results from \"HTTP Request\" node\nconst organic = $node[\"HTTP Request\"].json.organic_results;\nif (organic && Array.isArray(organic)) {\n  organic.forEach(res => {\n    addResult(res.link, res.title, res.snippet);\n  });\n}\n\n// 2. Process Perspectives \nconst perspectives = $node[\"HTTP Request\"].json.perspectives;\nif (perspectives && Array.isArray(perspectives)) {\n  perspectives.forEach(res => {\n    const link = res.link || res.link_url || res.url;\n    addResult(link, res.title, res.snippet || res.title);\n  });\n}\n\nreturn results.slice(0, 3); // Returns top 3 unique posts\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        0
+      ],
+      "id": "4bf154d4-d98a-4ce6-8aac-4bf36f40aae0",
+      "name": "LinkedIn Filter"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gemini-3-flash-preview",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "You are the Voice of Miraee Agentic OS. Miraee is the single hub that simplifies corporate travel, accommodation, and expenses.\nCore Miraee DNA:\n- One-Stop Hub: Manages flights, hotels, cabs, events, and summits in one place.\n- Disruption Management: AI agents monitor cancellations (weather/tech) in real-time, suggest immediate alternatives, and auto-book upon user approval.\n- Policy & Budget Compliance: Searches automatically filter for company-approved travel policies and budget ranges.\n- Instant Expense Management: Users snap a photo of receipts; Miraee parses them, tags them to the trip, and notifies accounting for 1-click auditing and reimbursement.\n- End-to-End: From the first booking to final financial audit reports.\nYour Task:\nAnalyze the provided LinkedIn post. Draft 3 insightful comments. \nGoal: Position Miraee as the solution to the problems mentioned (e.g., travel chaos, expense manual work, policy bypass, or cancellation stress).\nTone: Professional, expert, and proactive.\nFormat: Bold Headers. No hashtags. Under 3 sentences per option."
+            },
+            {
+              "content": "=PROMPT FOR MIRAEE ANALYST:\nI found a trending post on LinkedIn that needs a Miraee-level response.\nPOST TITLE: {{ $json.title }}\nURL: {{ $json.link }}\nPOST CONTEXT: {{ $json.snippet }}\nDRAFT 3 RESPONSE OPTIONS:\n1. **The Visionary Perspective** (Focus on the industry's future)\n2. **The Efficiency Perspective** (Focus on how Miraee replaces the manual work)\n3. **The 'Agentic' Perspective** (Focus on how our AI agents solve this specific pain point)\nAlways conclude with a professional tone that invites discussion.\nInstructions: 3 options, under 3 sentences each. Professional tone.\n\nInstruction: Provide 3 clear options. Separate each option with a double line break. Use bold for headers.\n\nFormat: Option 1: [Perspective Name] [Comment Text]"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.ollama",
+      "typeVersion": 1,
+      "position": [
+        672,
+        0
+      ],
+      "id": "36d309b0-e826-40e6-a73d-4c6d676207c8",
+      "name": "Ollama",
+      "credentials": {
+        "ollamaApi": {
+          "id": "BZC1qAp83ZOYfHRL",
+          "name": "Instant Announcer"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1500,
+        0
+      ],
+      "id": "c7b1742f-c7c4-4cf7-a010-47ba3cdc0d3a",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "url": "https://serpapi.com/search.json",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "engine",
+              "value": "google"
+            },
+            {
+              "name": "q",
+              "value": "=site:linkedin.com/posts {{$json[\"body\"][\"query\"]}}"
+            },
+            {
+              "name": "location",
+              "value": "India"
+            },
+            {
+              "name": "api_key",
+              "value": "bf59eec02e55ebd2c2dda0d5396370edd81e5170f414b0cbf632af4ba466597e"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        256,
+        0
+      ],
+      "id": "503bf0db-0a7f-47a8-b2c0-c55d886cb7e1",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst filterResults = $('LinkedIn Filter').all();\nconst ollamaResults = $('Ollama').all();\n\n// Assuming webhook body has the raw query topic\nconst topic = $('Webhook').first().json.body.query || 'Unknown Topic';\n\nreturn ollamaResults.map((item, i) => {\n  return {\n    json: {\n      ID: 'LNK-' + Math.random().toString(36).substr(2, 9).toUpperCase(),\n      Topic: topic,\n      Title: filterResults[i].json.title,\n      Link: filterResults[i].json.link,\n      Content: item.json.content,\n      Status: 'Pending'\n    }\n  }\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        0
+      ],
+      "id": "merge-data-node",
+      "name": "Merge Data"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls",
+          "mode": "list",
+          "cachedResultName": "ICP",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "LinkedIn Drafts",
+          "mode": "name",
+          "cachedResultName": "LinkedIn Drafts"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ID": "={{$json.ID}}",
+            "Topic": "={{$json.Topic}}",
+            "Title": "={{$json.Title}}",
+            "Link": "={{$json.Link}}",
+            "Content": "={{$json.Content}}",
+            "Status": "={{$json.Status}}"
+          },
+          "matchingColumns": []
+        },
+        "options": {}
+      },
+      "id": "sheet-append-1776096254665",
+      "name": "Save to DB",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.1,
+      "position": [
+        1300,
+        0
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "RQHgqiU45PVMtr8V",
+          "name": "Mondee 2"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Ollama Query Generator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LinkedIn Filter": {
+      "main": [
+        [
+          {
+            "node": "Ollama",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama": {
+      "main": [
+        [
+          {
+            "node": "Merge Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "LinkedIn Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Query Generator": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Data": {
+      "main": [
+        [
+          {
+            "node": "Save to DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save to DB": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "f8221b0a-6694-41e9-9cd1-6436f0c6e5d0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "48873ca0faf2834fcac348c85b5cfe8a77d198239fa094d25a95512e1a2e676b"
+  },
+  "id": "uohINiNDT9Uhj3jh",
+  "tags": []
+}

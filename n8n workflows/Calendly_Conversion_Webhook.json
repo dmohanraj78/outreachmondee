@@ -1,0 +1,68 @@
+{
+  "name": "Calendly Conversion Webhook",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "calendly-booking",
+        "options": {}
+      },
+      "id": "calendly-webhook",
+      "name": "Calendly Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const payload = $json.body.payload || $json.body;\nconst invitee = payload.invitee || {};\nconst event = payload.scheduled_event || {};\n\n// Parse Questions and Answers\nconst questions = invitee.questions_and_answers || [];\nconst notes = questions.map(q => `${q.question}: ${q.answer}`).join('\\n');\n\nreturn {\n  email: invitee.email,\n  name: invitee.name,\n  start_time: event.start_time || payload.start_time || 'Check Calendly',\n  notes: notes || 'No specific questions answered.',\n  event_name: event.name || (payload.event_type ? payload.event_type.name : 'Meeting Booked')\n};"
+      },
+      "id": "parse-payload",
+      "name": "Parse Calendly Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [420, 300]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": { "__rl": true, "value": "1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls", "mode": "id" },
+        "sheetName": "Verified Emails",
+        "columnToMatchOn": "Email",
+        "valueToMatchOn": "={{ $json.email }}",
+        "fields": {
+          "values": [
+            { "name": "Meeting_Status", "value": "Booked" },
+            { "name": "Meeting_Date", "value": "={{ $json.start_time }}" },
+            { "name": "Meeting_Notes", "value": "={{ $json.notes }}" },
+            { "name": "Sequence_Status", "value": "Converted" },
+            { "name": "Replied", "value": "TRUE" }
+          ]
+        }
+      },
+      "id": "update-sheet",
+      "name": "Update Conversion Data",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "sendTo": "dmohanraj-mondee@example.com",
+        "subject": "=🔥 New Meeting Booked: {{ $node[\"Parse Calendly Payload\"].json.name }}",
+        "message": "=Hello,\\n\\nA new meeting has been booked via Calendly!\\n\\nPROSPECT DETAILS:\\n- Name: {{ $node[\"Parse Calendly Payload\"].json.name }}\\n- Email: {{ $node[\"Parse Calendly Payload\"].json.email }}\\n- Time: {{ $node[\"Parse Calendly Payload\"].json.start_time }}\\n\\nQUALIFYING ANSWERS:\\n{{ $node[\"Parse Calendly Payload\"].json.notes }}\\n\\nThe Google Sheet has been updated and the sequence stopped.\\n\\nBest,\\nMiraee AI Agent",
+        "options": {}
+      },
+      "id": "notify-email",
+      "name": "Internal Notification",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [880, 300]
+    }
+  ],
+  "connections": {
+    "Calendly Webhook": { "main": [[{ "node": "Parse Calendly Payload", "type": "main", "index": 0 }]] },
+    "Parse Calendly Payload": { "main": [[{ "node": "Update Conversion Data", "type": "main", "index": 0 }]] },
+    "Update Conversion Data": { "main": [[{ "node": "Internal Notification", "type": "main", "index": 0 }]] }
+  }
+}

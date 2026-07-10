@@ -1,0 +1,381 @@
+{
+  "name": "Mail Sending",
+  "nodes": [
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls",
+          "mode": "list",
+          "cachedResultName": "ICP",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1759447022,
+          "mode": "list",
+          "cachedResultName": "Verified Emails",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls/edit#gid=1759447022"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "status"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        176,
+        576
+      ],
+      "id": "cb8bcbd3-f4f6-40fd-a76a-8289ea29aece",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "5UXIJ2FO1VLOtJZe",
+          "name": "Mondee"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls",
+          "mode": "list",
+          "cachedResultName": "ICP",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1759447022,
+          "mode": "list",
+          "cachedResultName": "Verified Emails",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls/edit#gid=1759447022"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "status": "Sent",
+            "Sequence_Status": "Sent",
+            "Sequence_Step": "1",
+            "Last_Sent_Date": "={{ $now }}",
+            "Replied": "FALSE",
+            "row_number": "={{ $('Get row(s) in sheet').item.json.row_number }}"
+          },
+          "matchingColumns": [
+            "row_number"
+          ],
+          "schema": [
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "role",
+              "displayName": "role",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "company",
+              "displayName": "company",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "linkedin",
+              "displayName": "linkedin",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "company website",
+              "displayName": "company website",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "subject",
+              "displayName": "subject",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "email_body",
+              "displayName": "email_body",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        624,
+        384
+      ],
+      "id": "c0372644-9af6-4348-9403-5c32f75fefae",
+      "name": "Update row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "5UXIJ2FO1VLOtJZe",
+          "name": "Mondee"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "Mail Sender \n\nStep 1 - Getting Mail id and Mail content from sheets\n\nStep 2 - Sending Message Message to first person\n\nStep 3 - Update the message Sent Status sheets\n\nStep 4 - wait for 5 Seconds \n\nIt will loop untill sending all",
+        "height": 288
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        0,
+        0
+      ],
+      "typeVersion": 1,
+      "id": "ca1e3a42-0606-4749-ac9f-227b2660b1c5",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "mail-send",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -48,
+        576
+      ],
+      "id": "a8087ae7-3de4-47ce-8ef1-b047abac8c00",
+      "name": "Webhook",
+      "webhookId": "84d64213-dd88-4edd-a4f5-ec341a52320b"
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        848,
+        384
+      ],
+      "id": "385e15d7-9f3c-4401-8ee7-c072495da847",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        400,
+        576
+      ],
+      "id": "0f8638ff-6125-4ba1-b083-58ee94094849",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.email }}",
+        "subject": "={{ $json.subject }}",
+        "message": "={{ $json.email_body }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        848,
+        656
+      ],
+      "id": "0c20e450-3ec9-4f8f-b9c1-fbd14702547a",
+      "name": "Send a message1",
+      "webhookId": "c0b8c7aa-e955-46ca-b673-f99b58901827",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "5b2fYtWoLEnRYlSA",
+          "name": "Gmail account 2"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        624,
+        576
+      ],
+      "id": "806aaf47-50a9-4ad6-a1ea-1be4209460e4",
+      "name": "Wait",
+      "webhookId": "874ede39-e164-4d90-b3dd-bbefdcb8cdce"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "Update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Send a message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "464000b2-46f0-4eb3-a52b-7f4c8c28b1d9",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "48873ca0faf2834fcac348c85b5cfe8a77d198239fa094d25a95512e1a2e676b"
+  },
+  "id": "6jSK6e7wHXBCjJsp",
+  "tags": []
+}

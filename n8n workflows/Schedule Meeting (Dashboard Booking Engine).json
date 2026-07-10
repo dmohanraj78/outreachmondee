@@ -1,0 +1,537 @@
+{
+  "name": "Schedule Meeting (Dashboard Booking Engine)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "schedule-meet",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "cb6e8221-2346-490d-9f77-2d18915e27c6",
+      "name": "Dashboard Booking Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -1680,
+        112
+      ],
+      "webhookId": "2fcacf5c-d8f0-40f8-81d9-b478ce98b951"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $json.body || $json;\n\nconst name = body.name || 'Prospect';\nconst email = body.email || '';\nconst company = body.company || 'N/A';\nconst startTime = body.startTime;\nconst endTime = body.endTime;\nconst summary = body.summary || `Meeting: ${name} x Miraee`;\nconst description = body.description || '';\nconst notes = body.notes || '';\nconst meetingType = body.meetingType || 'Demo & Discovery';\nconst sendConfirmation = body.sendConfirmation !== false;\n\n// Format dates for display — force IST timezone\nconst tz = 'Asia/Kolkata';\nconst start = new Date(startTime);\nconst dateStr = start.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: tz });\nconst timeStr = start.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: tz });\n\nconst end = new Date(endTime);\nconst endTimeStr = end.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: tz });\n\nconst durationMins = Math.round((end - start) / 60000);\n\nreturn {\n  name,\n  email,\n  company,\n  startTime,\n  endTime,\n  summary,\n  description,\n  notes,\n  meetingType,\n  sendConfirmation,\n  dateFormatted: dateStr,\n  timeFormatted: `${timeStr} - ${endTimeStr}`,\n  durationMins\n};\n"
+      },
+      "id": "f6f90f08-bb66-429c-aea8-b7e16a1cb07a",
+      "name": "Parse Booking Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1456,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const booking = $node['Parse Booking Payload'].json;\nconst calendarEvent = $json;\n\n// Extract Google Meet link from calendar response\nconst meetLink = calendarEvent.hangoutLink || calendarEvent.conferenceData?.entryPoints?.[0]?.uri || '';\nconst calendarLink = calendarEvent.htmlLink || '';\n\nreturn {\n  ...booking,\n  meetLink,\n  calendarLink,\n  eventId: calendarEvent.id || ''\n};"
+      },
+      "id": "ddbf9f9e-d6a1-460b-afe3-68ba61721cf8",
+      "name": "Merge Calendar Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1008,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.email }}",
+        "subject": "=✅ Meeting Confirmed: {{ $json.meetingType }} with Miraee — {{ $json.dateFormatted }}",
+        "message": "=<div style=\"font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;\">\n  <div style=\"background: linear-gradient(135deg, #4F001D 0%, #7a1a3d 100%); padding: 40px 32px; border-radius: 16px 16px 0 0;\">\n    <h1 style=\"color: #ffffff; margin: 0; font-size: 24px; font-weight: 700;\">Meeting Confirmed ✓</h1>\n    <p style=\"color: rgba(255,255,255,0.7); margin: 8px 0 0; font-size: 14px;\">Your session with Miraee has been scheduled</p>\n  </div>\n  \n  <div style=\"padding: 32px; border: 1px solid #e2e8f0; border-top: none; border-radius: 0 0 16px 16px;\">\n    <p style=\"font-size: 16px; color: #1e293b; margin: 0 0 24px;\">Hi {{ $json.name }},</p>\n    \n    <p style=\"font-size: 14px; color: #475569; line-height: 1.6; margin: 0 0 24px;\">Thank you for scheduling a <strong>{{ $json.meetingType }}</strong> session with us. We're looking forward to connecting with you!</p>\n    \n    <div style=\"background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; margin: 0 0 24px;\">\n      <table style=\"width: 100%; border-collapse: collapse;\">\n        <tr>\n          <td style=\"padding: 8px 0; font-size: 12px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;\">Date</td>\n          <td style=\"padding: 8px 0; font-size: 14px; color: #1e293b; font-weight: 600; text-align: right;\">{{ $json.dateFormatted }}</td>\n        </tr>\n        <tr>\n          <td style=\"padding: 8px 0; font-size: 12px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; border-top: 1px solid #e2e8f0;\">Time</td>\n          <td style=\"padding: 8px 0; font-size: 14px; color: #1e293b; font-weight: 600; text-align: right; border-top: 1px solid #e2e8f0;\">{{ $json.timeFormatted }}</td>\n        </tr>\n        <tr>\n          <td style=\"padding: 8px 0; font-size: 12px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; border-top: 1px solid #e2e8f0;\">Duration</td>\n          <td style=\"padding: 8px 0; font-size: 14px; color: #1e293b; font-weight: 600; text-align: right; border-top: 1px solid #e2e8f0;\">{{ $json.durationMins }} minutes</td>\n        </tr>\n        <tr>\n          <td style=\"padding: 8px 0; font-size: 12px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; border-top: 1px solid #e2e8f0;\">Type</td>\n          <td style=\"padding: 8px 0; font-size: 14px; color: #1e293b; font-weight: 600; text-align: right; border-top: 1px solid #e2e8f0;\">{{ $json.meetingType }}</td>\n        </tr>\n      </table>\n    </div>\n    \n    <div style=\"text-align: center; margin: 0 0 24px;\">\n      <a href=\"{{ $json.meetLink }}\" style=\"display: inline-block; background: linear-gradient(135deg, #4F001D 0%, #7a1a3d 100%); color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-size: 14px; font-weight: 600; letter-spacing: 0.5px;\">🎥 Join via Google Meet</a>\n    </div>\n    \n    <p style=\"font-size: 13px; color: #94a3b8; text-align: center; margin: 0 0 24px;\">A calendar invitation has also been sent to your email.</p>\n    \n    <hr style=\"border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;\" />\n    \n    <p style=\"font-size: 14px; color: #475569; line-height: 1.6; margin: 0 0 8px;\">Looking forward to our conversation!</p>\n    <p style=\"font-size: 14px; color: #1e293b; font-weight: 600; margin: 0;\">The Miraee Team</p>\n    <p style=\"font-size: 12px; color: #94a3b8; margin: 4px 0 0;\">Mondee Group Inc.</p>\n  </div>\n</div>",
+        "options": {}
+      },
+      "id": "c8ad2cae-a5ba-4b62-a9c8-9ca98ec303e1",
+      "name": "Send Prospect Confirmation",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        -592,
+        32
+      ],
+      "webhookId": "8794b6ce-d1c0-4acd-8752-4f584c498eac",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "5b2fYtWoLEnRYlSA",
+          "name": "Gmail account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls",
+          "mode": "list",
+          "cachedResultName": "ICP",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1759447022,
+          "mode": "list",
+          "cachedResultName": "Verified Emails",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls/edit#gid=1759447022"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Sequence_Status": "Converted",
+            "Meeting_Status": "Booked",
+            "Meeting_Date": "={{ $json.startTime }}",
+            "Meeting_Link": "={{ $json.meetLink }}",
+            "email": "={{ $json.email }}"
+          },
+          "matchingColumns": [
+            "email"
+          ],
+          "schema": [
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "date",
+              "displayName": "date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "company",
+              "displayName": "company",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "linkedin",
+              "displayName": "linkedin",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "company website",
+              "displayName": "company website",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "subject",
+              "displayName": "subject",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "email_body",
+              "displayName": "email_body",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Sequence_Step",
+              "displayName": "Sequence_Step",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Last_Sent_Date",
+              "displayName": "Last_Sent_Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Replied",
+              "displayName": "Replied",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "AI_Tag",
+              "displayName": "AI_Tag",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Draft_Body",
+              "displayName": "Draft_Body",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Draft_Subject",
+              "displayName": "Draft_Subject",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Sequence_Status",
+              "displayName": "Sequence_Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Meeting_Status",
+              "displayName": "Meeting_Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Meeting_Date",
+              "displayName": "Meeting_Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Meeting_Link",
+              "displayName": "Meeting_Link",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Connection note",
+              "displayName": "Connection note",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Connection request",
+              "displayName": "Connection request",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "b474d789-b38e-4b51-9828-ac43557f0f7e",
+      "name": "Mark as Converted",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        -592,
+        240
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "RQHgqiU45PVMtr8V",
+          "name": "Mondee 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "dhanushmohanraj78@gmail.com",
+        "subject": "=🔥 New Meeting Booked with {{ $('Merge Calendar Data').item.json.name }} From {{ $('Merge Calendar Data').item.json.company }}",
+        "message": "=A new meeting has been booked from the Intelligence Hub!\n\nPROSPECT: {{ $('Merge Calendar Data').item.json.name }}\nCOMPANY: {{ $('Merge Calendar Data').item.json.company }}\nEMAIL: {{ $('Merge Calendar Data').item.json.email }}\n\nMEETING DETAILS:\n- Type: {{ $('Merge Calendar Data').item.json.meetingType }}\n- Date: {{ $('Merge Calendar Data').item.json.dateFormatted }}\n- Time: {{ $('Merge Calendar Data').item.json.timeFormatted }}\n- Duration: {{ $('Merge Calendar Data').item.json.durationMins }}\n- Meet Link: {{ $('Merge Calendar Data').item.json.meetLink }}\n\nNOTES: {{ $('Merge Calendar Data').item.json.notes }}\n\nThe Google Sheet has been updated and the lead is marked as Converted.\n\n— Miraee AI Agent",
+        "options": {}
+      },
+      "id": "5a9e43b6-5449-4091-969a-44644187154d",
+      "name": "Internal Notification",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        -368,
+        112
+      ],
+      "webhookId": "5bcdc1ec-519b-4966-a967-2dc2082d4064",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "5b2fYtWoLEnRYlSA",
+          "name": "Gmail account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, message: 'Meeting booked successfully', meetLink: $json.meetLink, eventId: $json.eventId }) }}",
+        "options": {}
+      },
+      "id": "04714920-c5c1-4d58-b044-fc78fde47020",
+      "name": "Respond Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        -160,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "calendar": {
+          "__rl": true,
+          "value": "dmohanraj@mondee.com",
+          "mode": "list",
+          "cachedResultName": "dmohanraj@mondee.com"
+        },
+        "start": "={{ $json.startTime }}",
+        "end": "={{ $json.endTime }}",
+        "additionalFields": {
+          "attendees": [
+            "={{ $json.email }}"
+          ],
+          "color": "1",
+          "conferenceDataUi": {
+            "conferenceDataValues": {
+              "conferenceSolution": "hangoutsMeet"
+            }
+          },
+          "description": "=Meeting Type: {{ $json.meetingType }} \nProspect: {{ $json.name }} ({{ $json.email }}) \nCompany: {{ $json.company }}  \nNotes: {{ $json.notes }}\n",
+          "sendUpdates": "all",
+          "summary": "={{ $json.summary }}"
+        }
+      },
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        -1248,
+        112
+      ],
+      "id": "9664f3ca-826d-4550-8b57-55e2325082ea",
+      "name": "Create an event",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "V2i8b3F7qz7bc4Fm",
+          "name": "Google Calendar account 2"
+        }
+      }
+    }
+  ],
+  "pinData": {
+    "Merge Calendar Data": [
+      {
+        "json": {
+          "name": "Michael Shi",
+          "email": "akshayanakshay0@gmail.com",
+          "company": "ClickHouse",
+          "startTime": "2026-04-20T06:30:00.000Z",
+          "endTime": "2026-04-20T07:00:00.000Z",
+          "summary": "Demo & Discovery: Michael Shi x Miraee",
+          "description": "Scheduled via Miraee Intelligence Hub for lead: Michael Shi at ClickHouse.",
+          "notes": "Hello Michael SH, \n\nWe Glad to Connect you with Demo Call",
+          "meetingType": "Demo & Discovery",
+          "sendConfirmation": true,
+          "dateFormatted": "Monday, April 20, 2026",
+          "timeFormatted": "06:30 AM - 07:00 AM",
+          "durationMins": 30,
+          "meetLink": "",
+          "calendarLink": "https://www.google.com/calendar/event?eid=MWhwc3MxMnQ3MzR1N2o5a3ZsdmJmOTA0amMgZG1vaGFucmFqQG1vbmRlZS5jb20",
+          "eventId": "1hpss12t734u7j9kvlvbf904jc"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Dashboard Booking Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse Booking Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Booking Payload": {
+      "main": [
+        [
+          {
+            "node": "Create an event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Calendar Data": {
+      "main": [
+        [
+          {
+            "node": "Send Prospect Confirmation",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Mark as Converted",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Prospect Confirmation": {
+      "main": [
+        [
+          {
+            "node": "Internal Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Internal Notification": {
+      "main": [
+        [
+          {
+            "node": "Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create an event": {
+      "main": [
+        [
+          {
+            "node": "Merge Calendar Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark as Converted": {
+      "main": [
+        [
+          {
+            "node": "Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "2b698a92-4c19-4b80-a9d2-ad80d6f8f88a",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "48873ca0faf2834fcac348c85b5cfe8a77d198239fa094d25a95512e1a2e676b"
+  },
+  "id": "Fw07LAPSzzGReslr",
+  "tags": []
+}

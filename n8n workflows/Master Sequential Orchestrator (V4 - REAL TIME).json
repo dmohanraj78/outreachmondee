@@ -1,0 +1,449 @@
+{
+  "name": "Master Sequential Orchestrator (V4 - REAL TIME)",
+  "nodes": [
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// 1. Access the current item's data\nconst data = $json;\n\n// 2. Find columns (Robust lookup)\nconst stepKey = Object.keys(data).find(k => k.toLowerCase().replace(/_/g, '') === 'sequencestep') || 'Sequence_Step';\nconst dateKey = Object.keys(data).find(k => k.toLowerCase().replace(/_/g, '') === 'lastsentdate') || 'Last_Sent_Date';\n\nconst step = parseInt(data[stepKey]) || 0;\nconst lastSentDate = new Date(data[dateKey]);\n\n// Safety check: if date is invalid, stop here for this item\nif (isNaN(lastSentDate.getTime())) return; \n\nconst now = new Date();\nconst diffDays = Math.floor((now - lastSentDate) / (1000 * 3600 * 24));\n\nlet shouldProcess = false;\n\n// 3. 3-Day Sprint Logic\n// Step 0 -> Step 1: 1 day gap\nif (step === 0 && diffDays >= 1) shouldProcess = true;\n// Step 1 -> Step 2: 2 days gap\nelse if (step === 1 && diffDays >= 2) shouldProcess = true;\n// Step 2 -> Step 3: 3 days gap\nelse if (step === 2 && diffDays >= 3) shouldProcess = true;\n\n// 4. Return the item if it should be processed, otherwise return null/undefined to filter it out\nif (shouldProcess) {\n  return data;\n}\n\n// Returning nothing will effectively \"filter out\" this item \n// in n8n's \"Run Once for Each Item\" mode\nreturn; \n"
+      },
+      "id": "718abad5-f1db-487d-906b-995907a8d32c",
+      "name": "Check Sequential Gaps",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1856,
+        768
+      ]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gemini-3-flash-preview",
+          "mode": "list",
+          "cachedResultName": "gemini-3-flash-preview"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=System: You are an elite sales strategist for Miraee. You generate hyper-personalized, ultra-short emails (max 3 sentences). \\n\\nGuidelines:\\n- Sound human, no placeholders.\\n- Direct and helpful.\\n\\nLead: {{ $json.name }} at {{ $json.company }}. Goal: {{ $json.original_prompt }}. Format: {\"subject\": \"...\", \"body\": \"...\"}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b6ff735f-6616-4e94-8fb8-7b70547eb4c9",
+      "name": "Ollama Personalization",
+      "type": "@n8n/n8n-nodes-langchain.ollama",
+      "typeVersion": 1,
+      "position": [
+        2304,
+        768
+      ],
+      "credentials": {
+        "ollamaApi": {
+          "id": "XGazPUgShUXWj32e",
+          "name": "SERPNEW"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $json.content || '';\nconst clean = raw.replace(/```json/g, '').replace(/```/g, '').trim();\ntry {\n  const parsed = JSON.parse(clean);\n  return { \n    subject: parsed.subject, \n    body: parsed.body, \n    raw_status: 'Approval Required'\n  };\n} catch (e) {\n  return { \n    subject: 'Following up', \n    body: raw, \n    raw_status: 'Review Required'\n  };\n}"
+      },
+      "id": "b5ea8273-05ad-4aae-9af9-948ca71fe8eb",
+      "name": "Parse AI Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2656,
+        768
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls",
+          "mode": "list",
+          "cachedResultName": "ICP",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1759447022,
+          "mode": "list",
+          "cachedResultName": "Verified Emails",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls/edit#gid=1759447022"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "email": "={{ $('Sync Active Leads1').item.json.email }}",
+            "Sequence_Status": "={{ $json.raw_status }}",
+            "Draft_Subject": "={{ $json.subject }}",
+            "Draft_Body": "={{ $json.body }}",
+            "Sequence_Step": "={{ $('Calculate Next Touch1').item.json.next_step }}"
+          },
+          "matchingColumns": [
+            "email"
+          ],
+          "schema": [
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "date",
+              "displayName": "date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "company",
+              "displayName": "company",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "linkedin",
+              "displayName": "linkedin",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "company website",
+              "displayName": "company website",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "subject",
+              "displayName": "subject",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "email_body",
+              "displayName": "email_body",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Sequence_Step",
+              "displayName": "Sequence_Step",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Last_Sent_Date",
+              "displayName": "Last_Sent_Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Replied",
+              "displayName": "Replied",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "AI_Tag",
+              "displayName": "AI_Tag",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Draft_Body",
+              "displayName": "Draft_Body",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Draft_Subject",
+              "displayName": "Draft_Subject",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Sequence_Status",
+              "displayName": "Sequence_Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Connection note",
+              "displayName": "Connection note",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Connection request",
+              "displayName": "Connection request",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "78d270a5-4de8-46bd-b417-b4d3ea5f62db",
+      "name": "Queue for Approval",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        2880,
+        768
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "RQHgqiU45PVMtr8V",
+          "name": "Mondee 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "seconds",
+              "secondsInterval": 40
+            }
+          ]
+        }
+      },
+      "id": "0673dd28-b69c-466d-b938-b52ec5b076ca",
+      "name": "Schedule Trigger1",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        1408,
+        768
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls",
+          "mode": "list",
+          "cachedResultName": "ICP",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1759447022,
+          "mode": "list",
+          "cachedResultName": "Verified Emails",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1vFgXfOnsiCbVOvOJxj6E-sErHtLQ03AaVj4mP3YjAls/edit#gid=1759447022"
+        },
+        "options": {}
+      },
+      "id": "82127f65-c114-40bc-a40b-999aa3199874",
+      "name": "Sync Active Leads1",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        1632,
+        768
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "RQHgqiU45PVMtr8V",
+          "name": "Mondee 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $json;\n\n// Robust column lookup\nconst stepKey = Object.keys(item).find(k => k.toLowerCase().replace(/_/g, '') === 'sequencestep') || 'Sequence_Step';\nconst emailKey = Object.keys(item).find(k => k.toLowerCase() === 'email') || 'Email';\nconst nameKey = Object.keys(item).find(k => k.toLowerCase() === 'name') || 'Name';\nconst companyKey = Object.keys(item).find(k => k.toLowerCase() === 'company') || 'Company';\n\nconst step = parseInt(item[stepKey]) || 0;\nconst email = item[emailKey] || '';\nconst name = item[nameKey] || 'there';\nconst company = item[companyKey] || 'your company';\n\nlet prompt = '';\n\nif (step === 0) {\n  prompt = `Day 1 - CONVERSION: Direct value pitch. Show ${name} at ${company} exactly how Miraee solves their travel ops pain. End with a clear CTA to book a quick call.`;\n} else if (step === 1) {\n  prompt = `Day 2 - INSIGHT: Share a powerful industry insight relevant to ${company}. No hard sell. Position yourself as a thought leader. Example: Companies in your space are saving 20%+ on travel ops by automating X.`;\n} else if (step === 2) {\n  prompt = `Day 3 - FINAL (Break-up): Last touch. Keep it short and human. Wish ${name} well, mention you will not follow up again, and leave the door open. Make them feel the loss.`;\n}\n\nreturn { \n  email: email, \n  name: name, \n  company: company, \n  original_prompt: prompt,\n  next_step: step + 1\n};\n"
+      },
+      "id": "846207d2-695f-46fb-a07a-af2939a5fa67",
+      "name": "Calculate Next Touch1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2080,
+        768
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Check Sequential Gaps": {
+      "main": [
+        [
+          {
+            "node": "Calculate Next Touch1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Personalization": {
+      "main": [
+        [
+          {
+            "node": "Parse AI Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse AI Response": {
+      "main": [
+        [
+          {
+            "node": "Queue for Approval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger1": {
+      "main": [
+        [
+          {
+            "node": "Sync Active Leads1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sync Active Leads1": {
+      "main": [
+        [
+          {
+            "node": "Check Sequential Gaps",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Next Touch1": {
+      "main": [
+        [
+          {
+            "node": "Ollama Personalization",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "819ecb44-8ce2-4e28-a09a-44e46e13335b",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "48873ca0faf2834fcac348c85b5cfe8a77d198239fa094d25a95512e1a2e676b"
+  },
+  "id": "5pneiRmRsz0lBasp",
+  "tags": []
+}
